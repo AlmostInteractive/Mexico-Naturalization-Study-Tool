@@ -208,4 +208,5 @@ __marimo__/
 
 # My files
 /.claude/
-/.idea/
+/data
+quiz.db
