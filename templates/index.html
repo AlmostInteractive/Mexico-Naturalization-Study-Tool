@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examen de Ciudadanía Mexicana - Práctica</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .quiz-container {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+            padding: 30px;
+            text-align: center;
+        }
+        h1 {
+            color: #005a31; /* Mexican flag green */
+            margin-bottom: 25px;
+        }
+        .question {
+            font-size: 1.25em;
+            margin-bottom: 25px;
+            min-height: 50px;
+        }
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .option-btn {
+            background-color: #f8f9fa;
+            border: 2px solid #ced4da;
+            border-radius: 8px;
+            padding: 15px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            text-align: left;
+        }
+        .option-btn:hover:not(:disabled) {
+            border-color: #005a31;
+            background-color: #e8f5e9;
+        }
+        /* Styles for after an answer is selected */
+        .option-btn.correct {
+            background-color: #28a745; /* Green */
+            border-color: #28a745;
+            color: white;
+            font-weight: bold;
+        }
+        .option-btn.incorrect {
+            background-color: #dc3545; /* Red */
+            border-color: #dc3545;
+            color: white;
+        }
+        .option-btn:disabled {
+            cursor: not-allowed;
+        }
+        .next-btn {
+            display: none; /* Hidden by default */
+            margin-top: 25px;
+            background-color: #ce1126; /* Mexican flag red */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .menu-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: #005a31;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 20px;
+            font-size: 0.9em;
+            z-index: 1000;
+            border-radius: 0 0 8px 0;
+        }
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .menu-item label {
+            color: white;
+            font-weight: normal;
+        }
+        .menu-item select {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.9em;
+            background-color: white;
+            color: #333;
+        }
+        .menu-toggle {
+            background: none;
+            border: 2px solid white;
+            color: white;
+            border-radius: 4px;
+            padding: 4px 12px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .menu-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <!-- Menu Bar -->
+    <div class="menu-bar">
+        <div class="menu-item">
+            <label for="speech-rate">Velocidad de Audio:</label>
+            <select id="speech-rate">
+                <option value="0.7">Lenta</option>
+                <option value="1.0" selected>Normal</option>
+                <option value="1.2">Rápida</option>
+            </select>
+        </div>
+        <div class="menu-item">
+            <button id="menu-speech-toggle" class="menu-toggle">🔊 Audio: ON</button>
+        </div>
+    </div>
+
+    <div class="quiz-container">
+        <h1>Prueba de Práctica</h1>
+
+        <!-- Progress indicator -->
+        <div class="progress-container" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+            <div style="font-size: 0.9em; color: #495057;">
+                <strong>Progreso:</strong> Conjunto {{ current_chunk }} de {{ total_chunks }}
+                ({{ current_set_size }} preguntas activas)
+            </div>
+            <div style="font-size: 0.85em; color: #6c757d; margin-top: 5px;">
+                Dominadas: {{ mastered_count }} de {{ total_in_set }} | Respondidas 3+ veces: {{ progress_ratio }}
+            </div>
+            <div style="margin-top: 8px;">
+                <div style="width: 100%; background-color: #e9ecef; border-radius: 4px; height: 6px;">
+                    <div style="width: {{ (current_chunk / total_chunks * 100)|round }}%; background-color: #005a31; height: 6px; border-radius: 4px; transition: width 0.3s ease;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 25px;">
+            <div id="question" class="question" style="margin-bottom: 0; min-height: 50px; flex: 1;">{{ question }}</div>
+            <button id="replay-speech" style="background: none; border: 2px solid #005a31; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px;" title="Repetir pregunta">
+                🔊
+            </button>
+        </div>
+
+        <div class="options">
+            {% for option in options %}
+                <button class="option-btn">{{ option }}</button>
+            {% endfor %}
+        </div>
+
+        <!-- This hidden div holds the correct answer for our JavaScript to check against -->
+        <div id="correct-answer" style="display: none;">{{ correct_answer }}</div>
+        <div id="question-id" style="display: none;">{{ question_id }}</div>
+
+        <a href="/" id="next-btn" class="next-btn">Siguiente Pregunta</a>
+    </div>
+
+    <script>
+        // Text-to-Speech functionality
+        let speechEnabled = localStorage.getItem('speechEnabled') !== 'false'; // Default to enabled
+        let speechRate = parseFloat(localStorage.getItem('speechRate')) || 1.0; // Default to normal speed
+        let currentUtterance = null;
+
+        function updateSpeechToggleButton() {
+            const menuToggleButton = document.getElementById('menu-speech-toggle');
+            menuToggleButton.textContent = speechEnabled ? '🔊 Audio: ON' : '🔇 Audio: OFF';
+        }
+
+        function updateSpeechRate() {
+            const rateSelect = document.getElementById('speech-rate');
+            // Ensure the rate is one of our valid options
+            if (![0.7, 1.0, 1.2].includes(speechRate)) {
+                speechRate = 1.0; // Default to normal if invalid
+                localStorage.setItem('speechRate', speechRate);
+            }
+            rateSelect.value = speechRate.toString();
+        }
+
+        function speakText(text, onComplete = null) {
+            if (!speechEnabled || !('speechSynthesis' in window)) {
+                if (onComplete) onComplete();
+                return;
+            }
+
+            // Stop any current speech
+            speechSynthesis.cancel();
+
+            currentUtterance = new SpeechSynthesisUtterance(text);
+
+            // Add completion callback
+            if (onComplete) {
+                currentUtterance.onend = onComplete;
+                currentUtterance.onerror = onComplete; // Also advance on error
+            }
+
+            // Try to find a Spanish voice in preferred order
+            const voices = speechSynthesis.getVoices();
+
+            // Priority order: es-MX, es-US, then any Spanish voice
+            let spanishVoice = voices.find(voice => voice.lang === 'es-MX');
+            if (!spanishVoice) {
+                spanishVoice = voices.find(voice => voice.lang === 'es-US');
+            }
+            if (!spanishVoice) {
+                spanishVoice = voices.find(voice =>
+                    voice.lang.startsWith('es') ||
+                    voice.name.toLowerCase().includes('spanish') ||
+                    voice.name.toLowerCase().includes('español')
+                );
+            }
+
+            if (spanishVoice) {
+                currentUtterance.voice = spanishVoice;
+                currentUtterance.lang = spanishVoice.lang;
+            } else {
+                // Fallback to language codes if no Spanish voice found
+                currentUtterance.lang = 'es-MX'; // Try Mexican Spanish first
+            }
+
+            currentUtterance.rate = speechRate; // Use selected speech rate
+            currentUtterance.pitch = 1.0;
+
+            speechSynthesis.speak(currentUtterance);
+        }
+
+        // Load voices when they become available
+        function loadVoices() {
+            const voices = speechSynthesis.getVoices();
+
+            // Debug: Log available Spanish voices
+            const spanishVoices = voices.filter(voice =>
+                voice.lang.startsWith('es') ||
+                voice.name.toLowerCase().includes('spanish') ||
+                voice.name.toLowerCase().includes('español')
+            );
+
+            if (spanishVoices.length > 0) {
+                console.log('Available Spanish voices:', spanishVoices.map(v => `${v.name} (${v.lang})`));
+            } else {
+                console.log('No Spanish voices found. Available voices:', voices.map(v => `${v.name} (${v.lang})`));
+            }
+        }
+
+        function speakQuestion() {
+            const questionText = document.getElementById('question').textContent;
+            speakText(questionText);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const optionsContainer = document.querySelector('.options');
+            const correctAnswer = document.getElementById('correct-answer').textContent;
+            const questionId = document.getElementById('question-id').textContent;
+            const nextButton = document.getElementById('next-btn');
+            const menuSpeechToggle = document.getElementById('menu-speech-toggle');
+            const speechRateSelect = document.getElementById('speech-rate');
+            const replayButton = document.getElementById('replay-speech');
+
+            // Initialize menu controls
+            updateSpeechToggleButton();
+            updateSpeechRate();
+
+            // Load voices when available
+            loadVoices();
+            speechSynthesis.addEventListener('voiceschanged', loadVoices);
+
+            // Menu speech toggle functionality
+            menuSpeechToggle.addEventListener('click', () => {
+                speechEnabled = !speechEnabled;
+                localStorage.setItem('speechEnabled', speechEnabled);
+                updateSpeechToggleButton();
+
+                if (!speechEnabled) {
+                    speechSynthesis.cancel(); // Stop any current speech
+                }
+            });
+
+            // Speech rate change functionality
+            speechRateSelect.addEventListener('change', () => {
+                speechRate = parseFloat(speechRateSelect.value);
+                localStorage.setItem('speechRate', speechRate);
+            });
+
+            // Replay speech functionality
+            replayButton.addEventListener('click', speakQuestion);
+
+            // Auto-speak question when page loads (if enabled)
+            setTimeout(() => {
+                if (speechEnabled) {
+                    speakQuestion();
+                }
+            }, 500); // Small delay to ensure page is fully loaded
+
+            optionsContainer.addEventListener('click', async (event) => {
+                // Check if the clicked element is an option button and is not disabled
+                if (event.target.classList.contains('option-btn') && !event.target.disabled) {
+                    const selectedOption = event.target;
+                    const allOptions = optionsContainer.querySelectorAll('.option-btn');
+                    const selectedAnswer = selectedOption.textContent;
+
+                    // Disable all buttons to prevent multiple answers
+                    allOptions.forEach(btn => {
+                        btn.disabled = true;
+                    });
+
+                    // Check if the selected answer is correct
+                    const isCorrect = selectedAnswer === correctAnswer;
+                    if (isCorrect) {
+                        selectedOption.classList.add('correct');
+                        // Speak "Correcto" followed by the correct answer
+                        setTimeout(() => {
+                            speakText(`Correcto. ${correctAnswer}`, () => {
+                                // Auto-advance after speech completes
+                                setTimeout(() => {
+                                    window.location.href = '/';
+                                }, 1000); // 1 second delay after speech
+                            });
+                        }, 300);
+                    } else {
+                        selectedOption.classList.add('incorrect');
+                        // Highlight the correct answer anyway so the user can learn
+                        allOptions.forEach(btn => {
+                            if (btn.textContent === correctAnswer) {
+                                btn.classList.add('correct');
+                            }
+                        });
+                        // Speak the correct answer
+                        setTimeout(() => {
+                            speakText(`La respuesta correcta es: ${correctAnswer}`, () => {
+                                // Auto-advance after speech completes
+                                setTimeout(() => {
+                                    window.location.href = '/';
+                                }, 1000); // 1 second delay after speech
+                            });
+                        }, 300);
+                    }
+
+                    // Send answer to server for tracking
+                    try {
+                        await fetch('/answer', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                question_id: parseInt(questionId),
+                                selected_answer: selectedAnswer,
+                                correct_answer: correctAnswer
+                            })
+                        });
+                    } catch (error) {
+                        console.error('Error recording answer:', error);
+                    }
+
+                    // Show the "Next Question" button
+                    nextButton.style.display = 'inline-block';
+
+                    // If speech is disabled, auto-advance after 2 seconds
+                    if (!speechEnabled) {
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 2000);
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
