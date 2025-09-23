@@ -210,3 +210,4 @@ __marimo__/
 /.claude/
 /data/**
 quiz.db
+/.idea/workspace.xml

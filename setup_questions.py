@@ -48,14 +48,11 @@ def setup_questions(input_csv: str, model: str = "llama3.2", subject: str = "Mex
         if batch_size != 1:
             cmd.extend(["--batch-size", str(batch_size)])
 
-        result1 = subprocess.run(cmd, capture_output=True, text=True)
+        result1 = subprocess.run(cmd, text=True)
 
         if result1.returncode != 0:
             print(f"ERROR generating distractors:")
-            print(result1.stderr)
             return False
-
-        print(result1.stdout)
 
         # Check if distractors file was created
         if not os.path.exists(distractors_csv):
@@ -69,14 +66,11 @@ def setup_questions(input_csv: str, model: str = "llama3.2", subject: str = "Mex
         result2 = subprocess.run([
             sys.executable, 'import_distractors.py',
             distractors_csv
-        ], capture_output=True, text=True)
+        ], text=True)
 
         if result2.returncode != 0:
             print(f"ERROR importing to database:")
-            print(result2.stderr)
             return False
-
-        print(result2.stdout)
 
         # Keep the distractors file for inspection and future use
         print(f"\nDistractors file saved: {distractors_csv}")
