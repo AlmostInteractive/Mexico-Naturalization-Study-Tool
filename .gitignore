@@ -208,5 +208,5 @@ __marimo__/
 
 # My files
 /.claude/
-/data
+/data/**
 quiz.db
