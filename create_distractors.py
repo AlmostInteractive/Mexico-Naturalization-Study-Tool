@@ -380,12 +380,15 @@ def create_distractors_with_local_llm(input_file: str, model: str = "llama3.2", 
                 batch = all_questions[i:i + batch_size]
                 batch_count += 1
 
-                print(f"\nProcessing batch {batch_count} ({len(batch)} questions)...")
+                print(f"\n{'='*60}")
+                print(f"Processing questions {i + 1}-{min(i + batch_size, len(all_questions))} of {len(all_questions)}")
+                print(f"Batch {batch_count} ({len(batch)} questions)")
+                print(f"{'='*60}")
                 for j, (q, a) in enumerate(batch):
                     print(f"  {i + j + 1}. {q[:50]}...")
 
                 # Generate distractors for the entire batch (with retry)
-                print(f"Sending to local LLM ({model})...")
+                print(f"\nSending to local LLM ({model})... (this may take 30-60 seconds)")
                 batch_distractors = generator.generate_distractors_batch_with_retry(batch, subject)
 
                 # Write results
@@ -407,10 +410,18 @@ def create_distractors_with_local_llm(input_file: str, model: str = "llama3.2", 
                     print(f"Processed {questions_processed} questions so far. Pausing 1 second...")
                     time.sleep(1)
 
-                # Progress update
-                print(f"Batch {batch_count} complete. Total progress: {questions_processed}/{len(all_questions)} questions")
+                # Progress update with percentage
+                progress_percent = (questions_processed / len(all_questions)) * 100
+                print(f"\nBatch {batch_count} complete!")
+                print(f"Progress: {questions_processed}/{len(all_questions)} questions ({progress_percent:.1f}%)")
 
-        print(f"\nDistractor generation complete!")
+                if questions_processed < len(all_questions):
+                    remaining = len(all_questions) - questions_processed
+                    print(f"Remaining: {remaining} questions")
+
+        print(f"\n{'='*60}")
+        print(f"DISTRACTOR GENERATION COMPLETE!")
+        print(f"{'='*60}")
         print(f"SUCCESS: {questions_processed} questions processed")
         print(f"LOCAL_LLM: {llm_successes} locally-generated distractors")
         print(f"FALLBACK: {fallback_count} fallback distractors")

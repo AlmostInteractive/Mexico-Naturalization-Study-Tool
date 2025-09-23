@@ -4,7 +4,7 @@ import os
 import argparse
 
 
-def setup_questions(input_csv: str, model: str = "llama3.2", subject: str = "Mexican history and culture", keep_distractors: bool = False, batch_size: int = 1):
+def setup_questions(input_csv: str, model: str = "llama3.2", subject: str = "Mexican history and culture", keep_distractors: bool = True, batch_size: int = 1):
     """
     Complete workflow: Generate distractors using local LLM and import to database.
 
@@ -12,7 +12,7 @@ def setup_questions(input_csv: str, model: str = "llama3.2", subject: str = "Mex
         input_csv: Path to basic "Question,Answer" CSV file
         model: Local LLM model to use
         subject: Subject matter for context
-        keep_distractors: Keep the intermediate distractors CSV file
+        keep_distractors: Keep the intermediate distractors CSV file (default: True)
         batch_size: Number of questions per API call
     """
 
@@ -78,12 +78,10 @@ def setup_questions(input_csv: str, model: str = "llama3.2", subject: str = "Mex
 
         print(result2.stdout)
 
-        # Clean up intermediate file unless requested to keep
-        if not keep_distractors and os.path.exists(distractors_csv):
-            os.remove(distractors_csv)
-            print(f"\nCleaned up intermediate file: {distractors_csv}")
-        elif keep_distractors:
-            print(f"\nKept distractors file: {distractors_csv}")
+        # Keep the distractors file for inspection and future use
+        print(f"\nDistractors file saved: {distractors_csv}")
+        print("  - You can inspect the generated distractors in this file")
+        print("  - Keep this file as a backup of your enhanced questions")
 
         print("\nSetup complete! Questions with local AI-generated distractors are ready.")
         print("You can now run 'python app.py' to start the quiz.")
@@ -109,7 +107,7 @@ Examples:
   python setup_questions.py questions.csv
   python setup_questions.py questions.csv --model mistral
   python setup_questions.py questions.csv --subject "World History"
-  python setup_questions.py questions.csv --keep-distractors --batch-size 2
+  python setup_questions.py questions.csv --delete-distractors --batch-size 2
 
 Input CSV format:
   "Question","Answer"
@@ -134,8 +132,8 @@ Requirements:
                        help='Local LLM model to use (default: llama3.2)')
     parser.add_argument('--subject', default='Mexican history and culture',
                        help='Subject matter for context (default: Mexican history and culture)')
-    parser.add_argument('--keep-distractors', action='store_true',
-                       help='Keep the intermediate distractors CSV file')
+    parser.add_argument('--delete-distractors', action='store_true',
+                       help='Delete the intermediate distractors CSV file after import (default: keep file)')
     parser.add_argument('--batch-size', type=int, default=1,
                        help='Questions per LLM request (default: 1, max: 3)')
 
@@ -170,7 +168,7 @@ Requirements:
         args.input_csv,
         model=args.model,
         subject=args.subject,
-        keep_distractors=args.keep_distractors,
+        keep_distractors=not args.delete_distractors,  # Invert the delete flag
         batch_size=args.batch_size
     )
 
