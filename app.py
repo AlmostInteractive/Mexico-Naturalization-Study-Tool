@@ -3,8 +3,9 @@ import random
 from flask import Flask, render_template, request, jsonify
 
 # Configuration constants
-MAX_SUCCESS_RATE_CAP = 0.98  # Maximum success rate used for weight calculation (95%)
+MAX_SUCCESS_RATE_CAP = 0.98  # Maximum success rate used for weight calculation (98%)
 CONFIDENCE_THRESHOLD = 3  # Number of attempts needed for full confidence in statistics
+RECENT_ATTEMPTS_WINDOW = 5  # Only consider the last N attempts for success rate calculation
 
 # Initialize the Flask application
 app = Flask(__name__)
@@ -30,12 +31,43 @@ def get_total_chunks():
     return result[0] if result[0] else 1
 
 
+def get_rolling_success_rate(question_id, window_size=RECENT_ATTEMPTS_WINDOW):
+    """Calculate success rate based on the last N attempts."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get the last N attempts for this question
+    cursor.execute('''
+        SELECT is_correct FROM question_attempts
+        WHERE question_id = ?
+        ORDER BY attempt_timestamp DESC
+        LIMIT ?
+    ''', (question_id, window_size))
+
+    recent_attempts = cursor.fetchall()
+    conn.close()
+
+    if not recent_attempts:
+        return 0.0, 0
+
+    recent_correct = sum(1 for attempt in recent_attempts if attempt['is_correct'])
+    recent_total = len(recent_attempts)
+
+    return recent_correct / recent_total, recent_total
+
+
 def update_question_stats(question_id, is_correct):
     """Update statistics for a question after it's been answered."""
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Get current stats
+    # Record the individual attempt
+    cursor.execute('''
+        INSERT INTO question_attempts (question_id, is_correct)
+        VALUES (?, ?)
+    ''', (question_id, is_correct))
+
+    # Get current stats (for total tracking)
     cursor.execute('''
         SELECT times_answered, times_correct FROM question_stats
         WHERE question_id = ?
@@ -45,21 +77,31 @@ def update_question_stats(question_id, is_correct):
     times_answered = result['times_answered'] + 1
     times_correct = result['times_correct'] + (1 if is_correct else 0)
 
-    # Calculate success rate
+    # Calculate rolling window success rate
+    rolling_success_rate, recent_attempts_count = get_rolling_success_rate(question_id)
+
+    # Calculate lifetime success rate (for display/tracking purposes)
     if times_answered == 0:
-        success_rate = 0.0
+        lifetime_success_rate = 0.0
     else:
-        success_rate = times_correct / times_answered
+        lifetime_success_rate = times_correct / times_answered
+
+    # Use rolling success rate for weight calculation, lifetime for display
+    success_rate_for_display = lifetime_success_rate
+    success_rate_for_weight = rolling_success_rate
 
     # Modified exponential weighting system
     if times_answered == 0:
         weight = 25.0  # Much higher weight for unanswered questions
+    elif times_answered < CONFIDENCE_THRESHOLD:
+        # Questions with insufficient attempts get maximum weight (like 0% success rate)
+        weight = 25.0  # Same as unseen questions - we need more data
     else:
-        # Build confidence gradually (0.0 to 1.0 over CONFIDENCE_THRESHOLD attempts)
-        confidence = min(times_answered / CONFIDENCE_THRESHOLD, 1.0)
+        # Build confidence based on recent attempts (rolling window)
+        confidence = min(recent_attempts_count / CONFIDENCE_THRESHOLD, 1.0)
 
-        # Cap success rate for weight calculation
-        effective_success_rate = min(success_rate, MAX_SUCCESS_RATE_CAP)
+        # Cap success rate for weight calculation (use rolling rate)
+        effective_success_rate = min(success_rate_for_weight, MAX_SUCCESS_RATE_CAP)
 
         # Very aggressive exponential weighting: poor performance = much higher weight
         # Adjusted to make 100% success rate close to 1.0 baseline
@@ -74,12 +116,12 @@ def update_question_stats(question_id, is_correct):
         # Cap at reasonable maximum (increased for very aggressive separation)
         weight = min(weight, 50.0)
 
-    # Update stats
+    # Update stats (store lifetime success rate for display, but weight uses rolling rate)
     cursor.execute('''
         UPDATE question_stats
         SET times_answered = ?, times_correct = ?, success_rate = ?, weight = ?
         WHERE question_id = ?
-    ''', (times_answered, times_correct, success_rate, weight, question_id))
+    ''', (times_answered, times_correct, success_rate_for_display, weight, question_id))
 
     conn.commit()
     conn.close()

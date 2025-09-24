@@ -82,6 +82,17 @@ def initialize_database():
         )
     ''')
 
+    # Create question_attempts table for rolling window calculation
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS question_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            question_id INTEGER NOT NULL,
+            is_correct BOOLEAN NOT NULL,
+            attempt_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (question_id) REFERENCES questions (id)
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
