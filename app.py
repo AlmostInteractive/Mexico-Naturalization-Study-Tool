@@ -18,6 +18,18 @@ def get_db_connection():
     return conn
 
 
+def get_total_chunks():
+    """Calculate total number of chunks based on questions in database."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT MAX(chunk_number) FROM questions')
+    result = cursor.fetchone()
+    conn.close()
+
+    return result[0] if result[0] else 1
+
+
 def update_question_stats(question_id, is_correct):
     """Update statistics for a question after it's been answered."""
     conn = get_db_connection()
@@ -243,7 +255,7 @@ def quiz():
         question_id=question_id,
         # Progress information
         current_chunk=max_chunk,
-        total_chunks=15,  # We have 15 chunks total
+        total_chunks=get_total_chunks(),
         current_set_size=current_set_size,
         mastered_count=mastered_count,
         total_in_set=total_in_set,
@@ -329,7 +341,7 @@ def show_progress():
 
     return jsonify({
         'current_chunk': max_chunk,
-        'total_chunks': 15,
+        'total_chunks': get_total_chunks(),
         'current_set_size': current_set_size,
         'overall_success_rate': f"{avg_success:.1%}" if avg_success else "0%",
         'answered_count': answered_count,

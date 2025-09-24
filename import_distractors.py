@@ -2,6 +2,39 @@ import sqlite3
 import csv
 import sys
 import os
+import re
+
+
+def has_trailing_punctuation(text: str) -> bool:
+    """Check if text ends with punctuation."""
+    return bool(re.search(r'[.!?;:]$', text.strip()))
+
+
+def remove_trailing_punctuation(text: str) -> str:
+    """Remove trailing punctuation from text."""
+    return re.sub(r'[.!?;:]+$', '', text.strip())
+
+
+def normalize_punctuation(correct_answer: str, distractors: list) -> tuple:
+    """
+    Normalize punctuation between correct answer and distractors.
+
+    If correct answer has punctuation but distractors don't, remove punctuation
+    from correct answer to maintain consistency.
+
+    Returns:
+        tuple: (normalized_correct_answer, normalized_distractors, was_corrected)
+    """
+    # Check if correct answer has punctuation but distractors don't
+    correct_has_punct = has_trailing_punctuation(correct_answer)
+    distractors_have_punct = any(has_trailing_punctuation(d) for d in distractors if d.strip())
+
+    if correct_has_punct and not distractors_have_punct:
+        # Remove punctuation from correct answer for consistency
+        normalized_correct = remove_trailing_punctuation(correct_answer)
+        return normalized_correct, distractors, True
+
+    return correct_answer, distractors, False
 
 
 def initialize_database():
@@ -112,6 +145,7 @@ def import_distractors_csv(csv_file: str):
                 return False
 
             print("Importing questions...")
+            punctuation_corrections = 0
 
             for row in reader:
                 if len(row) >= 10:
@@ -120,6 +154,10 @@ def import_distractors_csv(csv_file: str):
                     distractors = [row[i].strip() for i in range(2, 10)]
 
                     if question_text and correct_answer:
+                        # Normalize punctuation for consistency
+                        correct_answer, distractors, was_corrected = normalize_punctuation(correct_answer, distractors)
+                        if was_corrected:
+                            punctuation_corrections += 1
                         # Calculate chunk (10 questions per chunk)
                         chunk_number = starting_chunk + (questions_imported // 10)
 
@@ -171,6 +209,9 @@ def import_distractors_csv(csv_file: str):
         print(f"SUCCESS: {questions_imported} questions imported")
         print(f"Chunks: {starting_chunk} to {starting_chunk + (questions_imported - 1) // 10}")
         print(f"Database: Questions initialized with default statistics")
+
+        if punctuation_corrections > 0:
+            print(f"Punctuation: {punctuation_corrections} answers normalized for consistency")
 
         # Show chunk breakdown
         if questions_imported > 0:
