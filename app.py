@@ -3,7 +3,7 @@ import random
 from flask import Flask, render_template, request, jsonify
 
 # Configuration constants
-MAX_SUCCESS_RATE_CAP = 0.95  # Maximum success rate used for weight calculation (95%)
+MAX_SUCCESS_RATE_CAP = 0.98  # Maximum success rate used for weight calculation (95%)
 CONFIDENCE_THRESHOLD = 3  # Number of attempts needed for full confidence in statistics
 
 # Initialize the Flask application
@@ -53,7 +53,7 @@ def update_question_stats(question_id, is_correct):
 
     # Modified exponential weighting system
     if times_answered == 0:
-        weight = 10.0  # Maximum weight for unanswered questions
+        weight = 25.0  # Much higher weight for unanswered questions
     else:
         # Build confidence gradually (0.0 to 1.0 over CONFIDENCE_THRESHOLD attempts)
         confidence = min(times_answered / CONFIDENCE_THRESHOLD, 1.0)
@@ -61,17 +61,18 @@ def update_question_stats(question_id, is_correct):
         # Cap success rate for weight calculation
         effective_success_rate = min(success_rate, MAX_SUCCESS_RATE_CAP)
 
-        # Exponential decay: more wrong answers = much higher weight
-        # Using 1.5^(1-success_rate) for gentler curve than 2^
-        base_weight = 1.0 + 4.0 * (1.5 ** (1 - effective_success_rate) - 0.5)
+        # Very aggressive exponential weighting: poor performance = much higher weight
+        # Adjusted to make 100% success rate close to 1.0 baseline
+        base_weight = 0.2 + 25.0 * (5.0 ** (1 - effective_success_rate) - 1.0)
 
         # Apply confidence multiplier: less confident = higher weight
-        confidence_multiplier = 1.0 + (1 - confidence) * 2.0
+        # Reduced multiplier to get 100% success closer to 1.0
+        confidence_multiplier = 1.0 + (1 - confidence) * 2.5
 
         weight = base_weight * confidence_multiplier
 
-        # Cap at reasonable maximum
-        weight = min(weight, 10.0)
+        # Cap at reasonable maximum (increased for very aggressive separation)
+        weight = min(weight, 50.0)
 
     # Update stats
     cursor.execute('''
