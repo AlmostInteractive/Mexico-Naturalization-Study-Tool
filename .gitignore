@@ -205,9 +205,10 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
-
-# My files
-/.claude/
-/data/**
-quiz.db
-/.idea/workspace.xml
+/trader_paper.db
+/TODO.txt
+/trader_paper.sqlite
+/.idea/dataSources.xml
+/.idea/sqldialects.xml
+charts/
+logs/

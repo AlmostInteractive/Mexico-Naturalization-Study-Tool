@@ -142,6 +142,9 @@
         <div class="menu-item">
             <button id="menu-speech-toggle" class="menu-toggle">🔊 Audio: ON</button>
         </div>
+        <div class="menu-item">
+            <button id="delete-question-btn" class="menu-toggle" style="background-color: #dc3545; border-color: #dc3545;" title="Eliminar esta pregunta de la base de datos">🗑️ Eliminar</button>
+        </div>
     </div>
 
     <div class="quiz-container">
@@ -282,6 +285,7 @@
             const menuSpeechToggle = document.getElementById('menu-speech-toggle');
             const speechRateSelect = document.getElementById('speech-rate');
             const replayButton = document.getElementById('replay-speech');
+            const deleteButton = document.getElementById('delete-question-btn');
 
             // Initialize menu controls
             updateSpeechToggleButton();
@@ -311,6 +315,42 @@
             // Replay speech functionality
             replayButton.addEventListener('click', speakQuestion);
 
+            // Delete question functionality
+            deleteButton.addEventListener('click', async () => {
+                if (confirm('¿Estás seguro de que quieres eliminar esta pregunta de la base de datos? Esta acción no se puede deshacer.')) {
+                    try {
+                        deleteButton.disabled = true;
+                        deleteButton.textContent = '⏳ Eliminando...';
+
+                        const response = await fetch('/delete_question', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                question_id: parseInt(questionId)
+                            })
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            alert('Pregunta eliminada exitosamente.');
+                            window.location.href = '/'; // Load next question
+                        } else {
+                            alert('Error al eliminar la pregunta: ' + result.error);
+                            deleteButton.disabled = false;
+                            deleteButton.textContent = '🗑️ Eliminar';
+                        }
+                    } catch (error) {
+                        console.error('Error deleting question:', error);
+                        alert('Error al eliminar la pregunta. Por favor, intenta de nuevo.');
+                        deleteButton.disabled = false;
+                        deleteButton.textContent = '🗑️ Eliminar';
+                    }
+                }
+            });
+
             // Auto-speak question when page loads (if enabled)
             setTimeout(() => {
                 if (speechEnabled) {
@@ -330,28 +370,15 @@
                         btn.disabled = true;
                     });
 
-                    // Check if the selected answer is correct
-                    const isCorrect = selectedAnswer === correctAnswer;
-                    if (isCorrect) {
-                        selectedOption.classList.add('correct');
-                        // Speak "Correcto" followed by the correct answer
-                        setTimeout(() => {
-                            speakText(`Correcto. ${correctAnswer}`, () => {
-                                // Auto-advance after speech completes
-                                setTimeout(() => {
-                                    window.location.href = '/';
-                                }, 1000); // 1 second delay after speech
-                            });
-                        }, 300);
-                    } else {
-                        selectedOption.classList.add('incorrect');
-                        // Highlight the correct answer anyway so the user can learn
+                    // Check if "No sé" was selected (just reveal answer, don't track)
+                    if (selectedAnswer === "No sé") {
+                        // Don't mark "No sé" as incorrect, just highlight the correct answer
                         allOptions.forEach(btn => {
                             if (btn.textContent === correctAnswer) {
                                 btn.classList.add('correct');
                             }
                         });
-                        // Speak the correct answer
+                        // Speak the correct answer without "incorrect" prefix
                         setTimeout(() => {
                             speakText(`La respuesta correcta es: ${correctAnswer}`, () => {
                                 // Auto-advance after speech completes
@@ -360,23 +387,56 @@
                                 }, 1000); // 1 second delay after speech
                             });
                         }, 300);
-                    }
+                        // Don't send to server for tracking - "No sé" is neutral
+                    } else {
+                        // Check if the selected answer is correct
+                        const isCorrect = selectedAnswer === correctAnswer;
+                        if (isCorrect) {
+                            selectedOption.classList.add('correct');
+                            // Speak "Correcto" followed by the correct answer
+                            setTimeout(() => {
+                                speakText(`Correcto. ${correctAnswer}`, () => {
+                                    // Auto-advance after speech completes
+                                    setTimeout(() => {
+                                        window.location.href = '/';
+                                    }, 1000); // 1 second delay after speech
+                                });
+                            }, 300);
+                        } else {
+                            selectedOption.classList.add('incorrect');
+                            // Highlight the correct answer anyway so the user can learn
+                            allOptions.forEach(btn => {
+                                if (btn.textContent === correctAnswer) {
+                                    btn.classList.add('correct');
+                                }
+                            });
+                            // Speak the correct answer
+                            setTimeout(() => {
+                                speakText(`La respuesta correcta es: ${correctAnswer}`, () => {
+                                    // Auto-advance after speech completes
+                                    setTimeout(() => {
+                                        window.location.href = '/';
+                                    }, 1000); // 1 second delay after speech
+                                });
+                            }, 300);
+                        }
 
-                    // Send answer to server for tracking
-                    try {
-                        await fetch('/answer', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                question_id: parseInt(questionId),
-                                selected_answer: selectedAnswer,
-                                correct_answer: correctAnswer
-                            })
-                        });
-                    } catch (error) {
-                        console.error('Error recording answer:', error);
+                        // Send answer to server for tracking (only for actual attempts)
+                        try {
+                            await fetch('/answer', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    question_id: parseInt(questionId),
+                                    selected_answer: selectedAnswer,
+                                    correct_answer: correctAnswer
+                                })
+                            });
+                        } catch (error) {
+                            console.error('Error recording answer:', error);
+                        }
                     }
 
                     // Show the "Next Question" button

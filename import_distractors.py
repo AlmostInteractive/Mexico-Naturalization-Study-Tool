@@ -15,6 +15,122 @@ def remove_trailing_punctuation(text: str) -> str:
     return re.sub(r'[.!?;:]+$', '', text.strip())
 
 
+def normalize_date_format(text: str) -> str:
+    """
+    Normalize date formats by removing Spanish date prefixes like 'En ' ONLY when followed by years.
+
+    Examples:
+        "En 1921" -> "1921"
+        "En el año 1810" -> "1810"
+        "En la ciudad de Querétaro" -> "En la ciudad de Querétaro" (unchanged)
+        "1952" -> "1952" (unchanged)
+    """
+    # Remove "En el año " prefix only when followed by a 4-digit year (case insensitive, handles ñ encoding issues)
+    text = re.sub(r'^En\s+el\s+a[ñn]o\s+(\d{4})', r'\1', text, flags=re.IGNORECASE)
+
+    # Remove "En " prefix only when followed by a 4-digit year (case insensitive)
+    text = re.sub(r'^En\s+(\d{4})', r'\1', text, flags=re.IGNORECASE)
+
+    return text.strip()
+
+
+def normalize_dates_in_answers(correct_answer: str, distractors: list) -> tuple:
+    """
+    Normalize date formats in correct answer and distractors.
+
+    Returns:
+        tuple: (normalized_correct_answer, normalized_distractors, was_corrected)
+    """
+    original_correct = correct_answer
+    normalized_correct = normalize_date_format(correct_answer)
+    normalized_distractors = [normalize_date_format(d) for d in distractors]
+
+    was_corrected = normalized_correct != original_correct
+
+    return normalized_correct, normalized_distractors, was_corrected
+
+
+def is_functionally_identical(answer1: str, answer2: str) -> bool:
+    """
+    Check if two answers are functionally identical (same meaning despite minor differences).
+
+    This handles cases like:
+    - "Benito Juarez" vs "Benito A. Juarez"
+    - "Mexico City" vs "Ciudad de Mexico"
+    - Minor punctuation/spacing differences
+    """
+    if not answer1 or not answer2:
+        return False
+
+    # Exact match
+    if answer1.strip() == answer2.strip():
+        return True
+
+    # Normalize for comparison: remove extra spaces, punctuation, case differences
+    def normalize_for_comparison(text):
+        # Convert to lowercase
+        text = text.lower().strip()
+        # Remove common punctuation
+        text = re.sub(r'[.,;:¿?¡!"\'\-\(\)]', '', text)
+        # Replace multiple spaces with single space
+        text = re.sub(r'\s+', ' ', text)
+        # Remove common middle initials pattern (single letter followed by optional period)
+        text = re.sub(r'\s+[a-z]\.?\s+', ' ', text)
+        # Remove standalone middle initials at word boundaries
+        text = re.sub(r'\b[a-z]\.?\b', '', text)
+        # Clean up extra spaces again
+        text = re.sub(r'\s+', ' ', text)
+        return text.strip()
+
+    norm1 = normalize_for_comparison(answer1)
+    norm2 = normalize_for_comparison(answer2)
+
+    # Check if they're identical after normalization
+    if norm1 == norm2:
+        return True
+
+    # Check if one is contained within the other (handles cases like "Benito Juarez" in "Benito A. Juarez")
+    if norm1 in norm2 or norm2 in norm1:
+        # Make sure it's a substantial match, not just a short word
+        shorter = norm1 if len(norm1) < len(norm2) else norm2
+        if len(shorter) >= 8:  # Only consider substantial matches
+            return True
+
+    # Special check: split into words and see if one is a subset of the other
+    # This handles "José María Morelos" vs "José M. Morelos"
+    words1 = set(norm1.split())
+    words2 = set(norm2.split())
+
+    if len(words1) >= 2 and len(words2) >= 2:
+        # Check if the longer set contains all words from the shorter set
+        if words1.issubset(words2) or words2.issubset(words1):
+            return True
+
+    return False
+
+
+def filter_duplicate_distractors(correct_answer: str, distractors: list) -> tuple:
+    """
+    Filter out distractors that are identical or functionally identical to the correct answer.
+
+    Returns:
+        tuple: (filtered_distractors, duplicates_found_count)
+    """
+    filtered_distractors = []
+    duplicates_found = 0
+
+    for distractor in distractors:
+        if not distractor or not distractor.strip():
+            filtered_distractors.append(distractor)  # Keep empty distractors
+        elif is_functionally_identical(correct_answer, distractor):
+            filtered_distractors.append("")  # Replace duplicate with empty string
+            duplicates_found += 1
+        else:
+            filtered_distractors.append(distractor)
+
+    return filtered_distractors, duplicates_found
+
+
 def normalize_punctuation(correct_answer: str, distractors: list) -> tuple:
     """
     Normalize punctuation between correct answer and distractors.
@@ -68,7 +184,7 @@ def initialize_database():
             times_answered INTEGER DEFAULT 0,
             times_correct INTEGER DEFAULT 0,
             success_rate REAL DEFAULT 0.0,
-            weight REAL DEFAULT 10.0,
+            weight REAL DEFAULT 25.0,
             FOREIGN KEY (question_id) REFERENCES questions (id)
         )
     ''')
@@ -157,6 +273,8 @@ def import_distractors_csv(csv_file: str):
 
             print("Importing questions...")
             punctuation_corrections = 0
+            date_corrections = 0
+            duplicate_distractors_found = 0
 
             for row in reader:
                 if len(row) >= 10:
@@ -165,9 +283,21 @@ def import_distractors_csv(csv_file: str):
                     distractors = [row[i].strip() for i in range(2, 10)]
 
                     if question_text and correct_answer:
+                        # Filter out duplicate distractors first
+                        distractors, duplicates_count = filter_duplicate_distractors(correct_answer, distractors)
+                        if duplicates_count > 0:
+                            duplicate_distractors_found += duplicates_count
+                            print(f"Question: {question_text[:50]}...")
+                            print(f"  Removed {duplicates_count} duplicate distractor(s) for answer: '{correct_answer}'")
+
+                        # Normalize date formats for consistency
+                        correct_answer, distractors, date_was_corrected = normalize_dates_in_answers(correct_answer, distractors)
+                        if date_was_corrected:
+                            date_corrections += 1
+
                         # Normalize punctuation for consistency
-                        correct_answer, distractors, was_corrected = normalize_punctuation(correct_answer, distractors)
-                        if was_corrected:
+                        correct_answer, distractors, punct_was_corrected = normalize_punctuation(correct_answer, distractors)
+                        if punct_was_corrected:
                             punctuation_corrections += 1
                         # Calculate chunk (10 questions per chunk)
                         chunk_number = starting_chunk + (questions_imported // 10)
@@ -188,7 +318,7 @@ def import_distractors_csv(csv_file: str):
                         cursor.execute('''
                             INSERT INTO question_stats (
                                 question_id, times_answered, times_correct, success_rate, weight
-                            ) VALUES (?, 0, 0, 0.0, 10.0)
+                            ) VALUES (?, 0, 0, 0.0, 25.0)
                         ''', (question_id,))
 
                         questions_imported += 1
@@ -221,6 +351,10 @@ def import_distractors_csv(csv_file: str):
         print(f"Chunks: {starting_chunk} to {starting_chunk + (questions_imported - 1) // 10}")
         print(f"Database: Questions initialized with default statistics")
 
+        if duplicate_distractors_found > 0:
+            print(f"Duplicates: {duplicate_distractors_found} duplicate distractors removed")
+        if date_corrections > 0:
+            print(f"Dates: {date_corrections} answers normalized (removed 'En ' prefixes)")
         if punctuation_corrections > 0:
             print(f"Punctuation: {punctuation_corrections} answers normalized for consistency")
 
