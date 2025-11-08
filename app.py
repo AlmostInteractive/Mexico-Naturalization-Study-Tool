@@ -6,6 +6,8 @@ from weight_calculator import calculate_weight, RECENT_ATTEMPTS_WINDOW, get_roll
 # Initialize the Flask application
 app = Flask(__name__)
 
+WEIGHT_INCREMENT = 0.1
+
 
 # --- Database Functions ---
 def get_db_connection():
@@ -27,12 +29,45 @@ def get_total_chunks():
     return result[0] if result[0] else 1
 
 
+def is_question_mastered(question_id, cursor):
+    """Check if a question is mastered (80%+ rolling success rate, 3+ attempts)."""
+    rolling_success_rate, attempts = get_rolling_success_rate(question_id, cursor)
+    return attempts >= 3 and rolling_success_rate >= 0.8
+
+
+def increment_mastered_weights(cursor, increment=WEIGHT_INCREMENT):
+    """Increment weights for mastered questions only."""
+    # Get current max unlocked chunk
+    cursor.execute('SELECT max_unlocked_chunk FROM user_progress WHERE id = 1')
+    result = cursor.fetchone()
+    max_chunk = result['max_unlocked_chunk'] if result else 1
+
+    # Get all questions in unlocked chunks
+    cursor.execute('''
+        SELECT q.id FROM questions q
+        WHERE q.chunk_number <= ?
+    ''', (max_chunk,))
+
+    all_questions = cursor.fetchall()
+
+    # Increment weights only for mastered questions
+    for question_row in all_questions:
+        question_id = question_row['id']
+        if is_question_mastered(question_id, cursor):
+            cursor.execute('''
+                UPDATE question_stats
+                SET weight = weight + ?
+                WHERE question_id = ?
+            ''', (increment, question_id))
 
 
 def update_question_stats(question_id, is_correct):
     """Update statistics for a question after it's been answered."""
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    # First increment weights for mastered questions only
+    increment_mastered_weights(cursor)
 
     # Record the individual attempt
     cursor.execute('''
@@ -53,8 +88,19 @@ def update_question_stats(question_id, is_correct):
     # Calculate lifetime success rate (for display purposes)
     lifetime_success_rate = times_correct / times_answered
 
-    # Calculate weight using shared library
-    weight = calculate_weight(question_id, times_answered, times_correct, cursor)
+    # Calculate weight based on mastery status
+    if is_question_mastered(question_id, cursor):
+        # Mastered question: reset to 1 if answered correctly, keep current if wrong
+        if is_correct:
+            weight = 1.0
+        else:
+            # Keep current weight (don't reset on wrong answer for mastered questions)
+            cursor.execute('SELECT weight FROM question_stats WHERE question_id = ?', (question_id,))
+            current_weight = cursor.fetchone()['weight']
+            weight = current_weight
+    else:
+        # Unmastered question: use rolling success rate based weight
+        weight = calculate_weight(question_id, times_answered, times_correct, cursor)
 
     # Update stats (store lifetime success rate for display, weight calculated by shared library)
     cursor.execute('''
@@ -109,25 +155,66 @@ def get_current_question_set():
 
     # Unlock next chunk if ALL questions have 80% rolling success rate AND have been answered at least 3 times
     if qualified_questions == total_in_set:
-        # Unlock next chunk
-        new_max_chunk = max_chunk + 1
-        new_set_size = min(current_set_size + 10, 147)  # Don't exceed total questions
+        # Get total chunks available
+        cursor.execute('SELECT MAX(chunk_number) FROM questions')
+        max_available_chunk = cursor.fetchone()[0] or 1
 
-        cursor.execute('''
-            UPDATE user_progress
-            SET max_unlocked_chunk = ?, questions_in_current_set = ?
-            WHERE id = 1
-        ''', (new_max_chunk, new_set_size))
+        # Only unlock next chunk if we haven't reached the maximum
+        if max_chunk < max_available_chunk:
+            new_max_chunk = max_chunk + 1
+            new_set_size = min(current_set_size + 10, 147)  # Don't exceed total questions
 
-        conn.commit()
-        max_chunk = new_max_chunk
-        current_set_size = new_set_size
+            cursor.execute('''
+                UPDATE user_progress
+                SET max_unlocked_chunk = ?, questions_in_current_set = ?
+                WHERE id = 1
+            ''', (new_max_chunk, new_set_size))
+
+            conn.commit()
+            max_chunk = new_max_chunk
+            current_set_size = new_set_size
 
     conn.close()
     return max_chunk, current_set_size, avg_success, answered_count, total_in_set, mastered_count
 
-def get_weighted_question():
-    """Select a question based on weighted probability from current active set."""
+
+def get_unmastered_question(cursor, max_chunk, available_questions):
+    """Select a question from unmastered questions based on rolling success rate weights."""
+    unmastered_questions = []
+
+    for q in available_questions:
+        if not is_question_mastered(q['id'], cursor):
+            # Use the current weight (calculated via rolling success rate)
+            unmastered_questions.append(q)
+
+    if not unmastered_questions:
+        return None
+
+    # Create weighted list based on current weights
+    weights = [q['weight'] for q in unmastered_questions]
+    selected_question = random.choices(unmastered_questions, weights=weights, k=1)[0]
+    return dict(selected_question)
+
+
+def get_mastered_question(cursor, max_chunk, available_questions):
+    """Select a question from mastered questions based on aging weights."""
+    mastered_questions = []
+
+    for q in available_questions:
+        if is_question_mastered(q['id'], cursor):
+            mastered_questions.append(q)
+
+    if not mastered_questions:
+        return None
+
+    # Create weighted list based on aging weights
+    weights = [q['weight'] for q in mastered_questions]
+    selected_question = random.choices(mastered_questions, weights=weights, k=1)[0]
+    return dict(selected_question)
+
+
+def get_weighted_question(exclude_question_id=None):
+    """Select a question using 70/30 strategy: 70% unmastered, 30% mastered."""
     max_chunk, current_set_size, avg_success, answered_count, total_in_set, mastered_count = get_current_question_set()
 
     conn = get_db_connection()
@@ -142,30 +229,36 @@ def get_weighted_question():
     ''', (max_chunk,))
 
     questions = cursor.fetchall()
-    conn.close()
+
+    # Filter out the excluded question if specified
+    if exclude_question_id is not None:
+        questions = [q for q in questions if q['id'] != exclude_question_id]
 
     if not questions:
+        conn.close()
         return None
 
-    # Check if we have a previous question stored in session
-    # Use a simple approach - store in the app's memory temporarily
-    if hasattr(get_weighted_question, 'last_question_id'):
-        last_id = get_weighted_question.last_question_id
-
-        # If we have more than one question available, filter out the last one
-        if len(questions) > 1:
-            questions = [q for q in questions if q['id'] != last_id]
-
-    # Create weighted list
-    weights = [q['weight'] for q in questions]
-
-    # Use random.choices for weighted selection
-    selected_question = random.choices(questions, weights=weights, k=1)[0]
-
-    # Store the selected question ID to avoid repetition
-    get_weighted_question.last_question_id = selected_question['id']
-
-    return dict(selected_question)
+    # 70/30 selection strategy
+    if random.random() < 0.7:
+        # 70% chance: Select from unmastered questions
+        selected = get_unmastered_question(cursor, max_chunk, questions)
+        if selected:
+            conn.close()
+            return selected
+        # Fallback to mastered if no unmastered questions
+        selected = get_mastered_question(cursor, max_chunk, questions)
+        conn.close()
+        return selected
+    else:
+        # 30% chance: Select from mastered questions
+        selected = get_mastered_question(cursor, max_chunk, questions)
+        if selected:
+            conn.close()
+            return selected
+        # Fallback to unmastered if no mastered questions
+        selected = get_unmastered_question(cursor, max_chunk, questions)
+        conn.close()
+        return selected
 
 
 def get_distractors_for_question(question_id):
@@ -197,11 +290,20 @@ def quiz():
     """
     This function handles the logic for a single quiz question with weighted selection.
     """
+    # 0. Get previous question ID to avoid repeating
+    prev_question_id = request.args.get('prev', type=int)
+
+    # Debug logging
+    if prev_question_id:
+        print(f"[DEBUG] Excluding previous question ID: {prev_question_id}")
+    else:
+        print("[DEBUG] No previous question to exclude")
+
     # 1. Get current progress info
     max_chunk, current_set_size, avg_success, answered_count, total_in_set, mastered_count = get_current_question_set()
 
     # 2. Select a question using weighted probability
-    question_data = get_weighted_question()
+    question_data = get_weighted_question(exclude_question_id=prev_question_id)
 
     if not question_data:
         return "No questions available!", 500
@@ -209,6 +311,9 @@ def quiz():
     question_id = question_data['id']
     question_text = question_data['question_text']
     correct_answer = question_data['correct_answer']
+
+    # Debug logging
+    print(f"[DEBUG] Selected question ID: {question_id}")
 
     # 3. Get distractors for this question
     all_distractors = get_distractors_for_question(question_id)
@@ -317,6 +422,7 @@ def show_stats():
     conn.close()
 
     return jsonify(stats_list)
+
 
 @app.route('/delete_question', methods=['POST'])
 def delete_question():

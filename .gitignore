@@ -208,7 +208,17 @@ __marimo__/
 /trader_paper.db
 /TODO.txt
 /trader_paper.sqlite
-/.idea/dataSources.xml
-/.idea/sqldialects.xml
+# JetBrains IDEs (PyCharm, IntelliJ IDEA, etc.)
+# Ignoring the entire .idea directory for simplicity
+# See https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
+.idea/
 charts/
 logs/
+
+# Project
+data/*.*
+quiz.db
+quiz - Copy.db
+
+# Claude Code
+.claude/

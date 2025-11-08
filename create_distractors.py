@@ -63,7 +63,12 @@ class LocalLLMDistractorGenerator:
 
 {batch_text.strip()}
 
-Make 8 plausible but incorrect options that sound reasonable. Use proper Spanish names and places when appropriate.
+Requirements:
+1. Each wrong answer must be plausible but incorrect, distinct from the correct answer
+2. Match the FORMAT of the correct answer (if it's a year, give years; if it's a name, give names)
+3. Use proper Mexican Spanish names and places when appropriate
+4. Make them diverse from each other
+5. Never use placeholder text like "Option 1" or "Opcion 1"
 
 Return ONLY valid JSON in this exact format:
 {{

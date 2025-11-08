@@ -153,6 +153,112 @@ def normalize_punctuation(correct_answer: str, distractors: list) -> tuple:
     return correct_answer, distractors, False
 
 
+def is_purely_numeric(text: str) -> bool:
+    """Check if text is purely numeric (possibly with minimal formatting)."""
+    # Remove common numeric separators
+    cleaned = re.sub(r'[,\s]', '', text.strip())
+    return cleaned.isdigit()
+
+
+def is_year(text: str) -> bool:
+    """Check if text appears to be a year."""
+    text = text.strip()
+    # Match 4-digit years (1000-2999)
+    return bool(re.match(r'^[12]\d{3}$', text))
+
+
+def validate_distractor_quality(correct_answer: str, distractor: str) -> tuple:
+    """
+    Validate a distractor's quality.
+
+    Returns:
+        tuple: (is_valid, reason_if_invalid)
+    """
+    if not distractor or not distractor.strip():
+        return True, ""  # Empty is OK, will be filtered later
+
+    distractor = distractor.strip()
+
+    # 1. Reject overly short answers (unless correct answer is also short)
+    if len(distractor) <= 2 and len(correct_answer) > 3:
+        return False, "Too short"
+
+    # 2. Reject placeholder patterns
+    placeholder_patterns = [
+        r'^opci[oó]n\s*\d+$',  # "Opcion 1", "Opción 2"
+        r'^option\s*\d+$',      # "Option 1"
+        r'^distractor\s*\d+$',  # "Distractor 1"
+        r'^wrong\s+answer',     # "Wrong answer"
+        r'^respuesta\s+(no\s+)?disponible',  # "Respuesta no disponible"
+    ]
+    for pattern in placeholder_patterns:
+        if re.search(pattern, distractor, re.IGNORECASE):
+            return False, "Placeholder text"
+
+    # 3. Type consistency - numeric vs text
+    correct_is_numeric = is_purely_numeric(correct_answer)
+    distractor_is_numeric = is_purely_numeric(distractor)
+
+    if correct_is_numeric != distractor_is_numeric:
+        # Exception: years are OK to mix with text dates
+        if not (is_year(correct_answer) or is_year(distractor)):
+            return False, "Type mismatch (numeric vs text)"
+
+    # 4. Format matching for years
+    if is_year(correct_answer) and not is_year(distractor):
+        return False, "Format mismatch (year expected)"
+
+    # 5. Reject single digit/character when correct answer is substantial
+    if len(distractor) == 1 and len(correct_answer) > 3:
+        return False, "Single character answer"
+
+    # 6. Reject if contains suspicious artifacts
+    suspicious_patterns = [
+        r'```',           # Code block markers
+        r'\[.*?\]',       # JSON-like brackets
+        r'\{.*?\}',       # JSON braces
+        r'^\d+[\.:]\s*',  # List numbering like "1. " or "1: "
+    ]
+    for pattern in suspicious_patterns:
+        if re.search(pattern, distractor):
+            return False, "Contains artifacts"
+
+    return True, ""
+
+
+def check_distractor_similarity(distractors: list) -> tuple:
+    """
+    Check for near-duplicate distractors.
+
+    Returns:
+        tuple: (filtered_distractors, duplicates_removed_count)
+    """
+    seen = []
+    filtered = []
+    duplicates_count = 0
+
+    for distractor in distractors:
+        if not distractor or not distractor.strip():
+            filtered.append(distractor)
+            continue
+
+        # Check if too similar to any existing distractor
+        is_duplicate = False
+        for existing in seen:
+            if is_functionally_identical(existing, distractor):
+                is_duplicate = True
+                break
+
+        if is_duplicate:
+            filtered.append("")  # Replace with empty
+            duplicates_count += 1
+        else:
+            filtered.append(distractor)
+            seen.append(distractor)
+
+    return filtered, duplicates_count
+
+
 def initialize_database():
     """Initialize the database with required tables if they don't exist."""
     conn = sqlite3.connect('quiz.db')
@@ -275,6 +381,8 @@ def import_distractors_csv(csv_file: str):
             punctuation_corrections = 0
             date_corrections = 0
             duplicate_distractors_found = 0
+            invalid_distractors_found = 0
+            similar_distractors_found = 0
 
             for row in reader:
                 if len(row) >= 10:
@@ -289,6 +397,31 @@ def import_distractors_csv(csv_file: str):
                             duplicate_distractors_found += duplicates_count
                             print(f"Question: {question_text[:50]}...")
                             print(f"  Removed {duplicates_count} duplicate distractor(s) for answer: '{correct_answer}'")
+
+                        # Validate distractor quality
+                        valid_distractors = []
+                        invalid_count = 0
+                        for i, distractor in enumerate(distractors):
+                            is_valid, reason = validate_distractor_quality(correct_answer, distractor)
+                            if is_valid:
+                                valid_distractors.append(distractor)
+                            else:
+                                valid_distractors.append("")  # Replace invalid with empty
+                                invalid_count += 1
+                                if invalid_count == 1:  # Print question header only once
+                                    print(f"Question: {question_text[:50]}...")
+                                print(f"  Removed invalid distractor #{i+1}: '{distractor}' ({reason})")
+
+                        if invalid_count > 0:
+                            invalid_distractors_found += invalid_count
+                        distractors = valid_distractors
+
+                        # Check for near-duplicate distractors
+                        distractors, similar_count = check_distractor_similarity(distractors)
+                        if similar_count > 0:
+                            similar_distractors_found += similar_count
+                            print(f"Question: {question_text[:50]}...")
+                            print(f"  Removed {similar_count} similar distractor(s)")
 
                         # Normalize date formats for consistency
                         correct_answer, distractors, date_was_corrected = normalize_dates_in_answers(correct_answer, distractors)
@@ -351,8 +484,13 @@ def import_distractors_csv(csv_file: str):
         print(f"Chunks: {starting_chunk} to {starting_chunk + (questions_imported - 1) // 10}")
         print(f"Database: Questions initialized with default statistics")
 
+        # Quality control summary
         if duplicate_distractors_found > 0:
             print(f"Duplicates: {duplicate_distractors_found} duplicate distractors removed")
+        if invalid_distractors_found > 0:
+            print(f"Quality: {invalid_distractors_found} low-quality distractors removed")
+        if similar_distractors_found > 0:
+            print(f"Similarity: {similar_distractors_found} similar distractors removed")
         if date_corrections > 0:
             print(f"Dates: {date_corrections} answers normalized (removed 'En ' prefixes)")
         if punctuation_corrections > 0:

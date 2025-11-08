@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Examen de Ciudadanía Mexicana - Práctica</title>
     <style>
         body {
@@ -183,7 +186,7 @@
         <div id="correct-answer" style="display: none;">{{ correct_answer }}</div>
         <div id="question-id" style="display: none;">{{ question_id }}</div>
 
-        <a href="/" id="next-btn" class="next-btn">Siguiente Pregunta</a>
+        <a href="#" id="next-btn" class="next-btn">Siguiente Pregunta</a>
     </div>
 
     <script>
@@ -279,9 +282,12 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             const optionsContainer = document.querySelector('.options');
-            const correctAnswer = document.getElementById('correct-answer').textContent;
-            const questionId = document.getElementById('question-id').textContent;
+            const correctAnswer = document.getElementById('correct-answer').textContent.trim();
+            const questionId = document.getElementById('question-id').textContent.trim();
             const nextButton = document.getElementById('next-btn');
+
+            // Debug: Log the current question ID
+            console.log('Current question ID:', questionId);
             const menuSpeechToggle = document.getElementById('menu-speech-toggle');
             const speechRateSelect = document.getElementById('speech-rate');
             const replayButton = document.getElementById('replay-speech');
@@ -315,6 +321,12 @@
             // Replay speech functionality
             replayButton.addEventListener('click', speakQuestion);
 
+            // Next button functionality
+            nextButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.location.href = '/?prev=' + questionId;
+            });
+
             // Delete question functionality
             deleteButton.addEventListener('click', async () => {
                 if (confirm('¿Estás seguro de que quieres eliminar esta pregunta de la base de datos? Esta acción no se puede deshacer.')) {
@@ -336,7 +348,7 @@
 
                         if (result.success) {
                             alert('Pregunta eliminada exitosamente.');
-                            window.location.href = '/'; // Load next question
+                            window.location.href = '/?prev=' + questionId; // Load next question
                         } else {
                             alert('Error al eliminar la pregunta: ' + result.error);
                             deleteButton.disabled = false;
@@ -383,7 +395,7 @@
                             speakText(`La respuesta correcta es: ${correctAnswer}`, () => {
                                 // Auto-advance after speech completes
                                 setTimeout(() => {
-                                    window.location.href = '/';
+                                    window.location.href = '/?prev=' + questionId;
                                 }, 1000); // 1 second delay after speech
                             });
                         }, 300);
@@ -398,7 +410,7 @@
                                 speakText(`Correcto. ${correctAnswer}`, () => {
                                     // Auto-advance after speech completes
                                     setTimeout(() => {
-                                        window.location.href = '/';
+                                        window.location.href = '/?prev=' + questionId;
                                     }, 1000); // 1 second delay after speech
                                 });
                             }, 300);
@@ -415,7 +427,7 @@
                                 speakText(`La respuesta correcta es: ${correctAnswer}`, () => {
                                     // Auto-advance after speech completes
                                     setTimeout(() => {
-                                        window.location.href = '/';
+                                        window.location.href = '/?prev=' + questionId;
                                     }, 1000); // 1 second delay after speech
                                 });
                             }, 300);
@@ -445,7 +457,7 @@
                     // If speech is disabled, auto-advance after 2 seconds
                     if (!speechEnabled) {
                         setTimeout(() => {
-                            window.location.href = '/';
+                            window.location.href = '/?prev=' + questionId;
                         }, 2000);
                     }
                 }
