@@ -222,7 +222,7 @@ def get_weighted_question(exclude_question_id=None):
 
     # Get questions only from unlocked chunks
     cursor.execute('''
-        SELECT q.id, q.question_text, q.correct_answer, qs.weight
+        SELECT q.id, q.question_text, q.correct_answer, q.notes, qs.weight
         FROM questions q
         JOIN question_stats qs ON q.id = qs.question_id
         WHERE q.chunk_number <= ?
@@ -311,6 +311,7 @@ def quiz():
     question_id = question_data['id']
     question_text = question_data['question_text']
     correct_answer = question_data['correct_answer']
+    notes = question_data['notes']
 
     # Debug logging
     print(f"[DEBUG] Selected question ID: {question_id}")
@@ -342,6 +343,7 @@ def quiz():
         question=question_text,
         options=options,
         correct_answer=correct_answer,
+        notes=notes,
         question_id=question_id,
         # Progress information
         current_chunk=max_chunk,

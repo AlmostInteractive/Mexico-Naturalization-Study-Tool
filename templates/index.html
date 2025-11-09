@@ -185,6 +185,13 @@
         <!-- This hidden div holds the correct answer for our JavaScript to check against -->
         <div id="correct-answer" style="display: none;">{{ correct_answer }}</div>
         <div id="question-id" style="display: none;">{{ question_id }}</div>
+        <div id="notes" style="display: none;">{{ notes if notes else '' }}</div>
+
+        <!-- Notes display area (shown after answer is revealed) -->
+        <div id="notes-display" style="display: none; margin-top: 20px; padding: 15px; background-color: #e8f5e9; border-left: 4px solid #005a31; border-radius: 4px;">
+            <strong style="color: #005a31;">Nota:</strong>
+            <span id="notes-text"></span>
+        </div>
 
         <a href="#" id="next-btn" class="next-btn">Siguiente Pregunta</a>
     </div>
@@ -278,6 +285,18 @@
         function speakQuestion() {
             const questionText = document.getElementById('question').textContent;
             speakText(questionText);
+        }
+
+        function displayNotes() {
+            const notes = document.getElementById('notes').textContent.trim();
+            if (notes) {
+                const notesDisplay = document.getElementById('notes-display');
+                const notesText = document.getElementById('notes-text');
+                notesText.textContent = notes;
+                notesDisplay.style.display = 'block';
+                return notes;
+            }
+            return null;
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -390,9 +409,17 @@
                                 btn.classList.add('correct');
                             }
                         });
-                        // Speak the correct answer without "incorrect" prefix
+
+                        // Display notes if they exist
+                        const notes = displayNotes();
+
+                        // Speak the correct answer without "incorrect" prefix, then notes if they exist
                         setTimeout(() => {
-                            speakText(`La respuesta correcta es: ${correctAnswer}`, () => {
+                            const fullText = notes
+                                ? `La respuesta correcta es: ${correctAnswer}. Nota: ${notes}`
+                                : `La respuesta correcta es: ${correctAnswer}`;
+
+                            speakText(fullText, () => {
                                 // Auto-advance after speech completes
                                 setTimeout(() => {
                                     window.location.href = '/?prev=' + questionId;
@@ -405,9 +432,17 @@
                         const isCorrect = selectedAnswer === correctAnswer;
                         if (isCorrect) {
                             selectedOption.classList.add('correct');
-                            // Speak "Correcto" followed by the correct answer
+
+                            // Display notes if they exist
+                            const notes = displayNotes();
+
+                            // Speak "Correcto" followed by the correct answer and notes if they exist
                             setTimeout(() => {
-                                speakText(`Correcto. ${correctAnswer}`, () => {
+                                const fullText = notes
+                                    ? `Correcto. ${correctAnswer}. Nota: ${notes}`
+                                    : `Correcto. ${correctAnswer}`;
+
+                                speakText(fullText, () => {
                                     // Auto-advance after speech completes
                                     setTimeout(() => {
                                         window.location.href = '/?prev=' + questionId;
@@ -422,9 +457,17 @@
                                     btn.classList.add('correct');
                                 }
                             });
-                            // Speak the correct answer
+
+                            // Display notes if they exist
+                            const notes = displayNotes();
+
+                            // Speak the correct answer and notes if they exist
                             setTimeout(() => {
-                                speakText(`La respuesta correcta es: ${correctAnswer}`, () => {
+                                const fullText = notes
+                                    ? `La respuesta correcta es: ${correctAnswer}. Nota: ${notes}`
+                                    : `La respuesta correcta es: ${correctAnswer}`;
+
+                                speakText(fullText, () => {
                                     // Auto-advance after speech completes
                                     setTimeout(() => {
                                         window.location.href = '/?prev=' + questionId;

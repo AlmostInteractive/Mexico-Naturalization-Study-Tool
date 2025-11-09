@@ -278,7 +278,8 @@ def initialize_database():
             distractor5 TEXT,
             distractor6 TEXT,
             distractor7 TEXT,
-            distractor8 TEXT
+            distractor8 TEXT,
+            notes TEXT
         )
     ''')
 
@@ -372,10 +373,15 @@ def import_distractors_csv(csv_file: str):
             # Check header
             header = next(reader, None)
             if not header or len(header) < 10:
-                print("ERROR: CSV must have 10 columns (Question, Correct_Answer, 8 Distractors)")
+                print("ERROR: CSV must have at least 10 columns (Question, Correct_Answer, 8 Distractors)")
                 print(f"Found {len(header) if header else 0} columns")
                 conn.close()
                 return False
+
+            # Check if header has notes column (11th column)
+            has_notes_column = len(header) >= 11
+            if has_notes_column:
+                print("Detected notes column in CSV")
 
             print("Importing questions...")
             punctuation_corrections = 0
@@ -389,6 +395,7 @@ def import_distractors_csv(csv_file: str):
                     question_text = row[0].strip()
                     correct_answer = row[1].strip()
                     distractors = [row[i].strip() for i in range(2, 10)]
+                    notes = row[10].strip() if len(row) >= 11 and row[10].strip() else None
 
                     if question_text and correct_answer:
                         # Filter out duplicate distractors first
@@ -440,9 +447,10 @@ def import_distractors_csv(csv_file: str):
                             INSERT INTO questions (
                                 question_text, correct_answer, chunk_number,
                                 distractor1, distractor2, distractor3, distractor4,
-                                distractor5, distractor6, distractor7, distractor8
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ''', [question_text, correct_answer, chunk_number] + distractors)
+                                distractor5, distractor6, distractor7, distractor8,
+                                notes
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', [question_text, correct_answer, chunk_number] + distractors + [notes])
 
                         # Get the question ID
                         question_id = cursor.lastrowid
@@ -569,7 +577,8 @@ def main():
         print("  python import_distractors.py --status")
         print("")
         print("CSV Format Expected:")
-        print("  Question,Correct_Answer,Distractor1,Distractor2,...,Distractor8")
+        print("  Question,Correct_Answer,Distractor1,Distractor2,...,Distractor8[,Notes]")
+        print("  (Notes column is optional)")
         print("")
         print("This tool will:")
         print("  1. Initialize database tables if needed")

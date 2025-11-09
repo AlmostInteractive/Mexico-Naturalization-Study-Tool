@@ -351,6 +351,7 @@ def create_distractors_with_local_llm(input_file: str, model: str = "llama3.2", 
     try:
         # First pass: read all questions
         all_questions = []
+        has_notes_column = False
         with open(input_file, 'r', encoding='utf-8') as infile:
             reader = csv.reader(infile)
 
@@ -360,12 +361,18 @@ def create_distractors_with_local_llm(input_file: str, model: str = "llama3.2", 
                 print("ERROR: Input CSV must have at least 2 columns (Question, Answer)")
                 return None
 
+            # Check if header has notes column (3rd column)
+            has_notes_column = len(header) >= 3
+            if has_notes_column:
+                print("Detected notes column in input CSV - will preserve in output")
+
             for row in reader:
                 if len(row) >= 2:
                     question = row[0].strip()
                     correct_answer = row[1].strip()
+                    notes = row[2].strip() if len(row) >= 3 else None
                     if question and correct_answer:
-                        all_questions.append((question, correct_answer))
+                        all_questions.append((question, correct_answer, notes))
 
         print(f"Found {len(all_questions)} questions to process")
 
@@ -373,12 +380,15 @@ def create_distractors_with_local_llm(input_file: str, model: str = "llama3.2", 
         with open(output_file, 'w', newline='', encoding='utf-8') as outfile:
             writer = csv.writer(outfile)
 
-            # Write header
-            writer.writerow([
+            # Write header (include notes column if present in input)
+            header_row = [
                 "Question", "Correct_Answer", "Distractor1", "Distractor2",
                 "Distractor3", "Distractor4", "Distractor5", "Distractor6",
                 "Distractor7", "Distractor8"
-            ])
+            ]
+            if has_notes_column:
+                header_row.append("Notes")
+            writer.writerow(header_row)
 
             # Process questions in batches
             for i in range(0, len(all_questions), batch_size):
@@ -389,15 +399,22 @@ def create_distractors_with_local_llm(input_file: str, model: str = "llama3.2", 
                 print(f"Processing questions {i + 1}-{min(i + batch_size, len(all_questions))} of {len(all_questions)}")
                 print(f"Batch {batch_count} ({len(batch)} questions)")
                 print(f"{'='*60}")
-                for j, (q, a) in enumerate(batch):
+                for j, item in enumerate(batch):
+                    q = item[0]
                     print(f"  {i + j + 1}. {q[:50]}...")
 
                 # Generate distractors for the entire batch (with retry)
+                # Extract just question and answer for distractor generation
+                batch_qa = [(item[0], item[1]) for item in batch]
                 print(f"\nSending to local LLM ({model})... (this may take 30-60 seconds)")
-                batch_distractors = generator.generate_distractors_batch_with_retry(batch, subject)
+                batch_distractors = generator.generate_distractors_batch_with_retry(batch_qa, subject)
 
                 # Write results
-                for j, ((question, correct_answer), distractors) in enumerate(zip(batch, batch_distractors)):
+                for j, (item, distractors) in enumerate(zip(batch, batch_distractors)):
+                    question = item[0]
+                    correct_answer = item[1]
+                    notes = item[2] if len(item) >= 3 else None
+
                     # Check if we used LLM or fallback
                     if "Opcion" not in str(distractors):
                         llm_successes += 1
@@ -406,8 +423,11 @@ def create_distractors_with_local_llm(input_file: str, model: str = "llama3.2", 
                         fallback_count += 1
                         print(f"  WARNING: Question {i + j + 1} - Used fallback distractors")
 
-                    # Write the row
-                    writer.writerow([question, correct_answer] + distractors)
+                    # Write the row (include notes if present)
+                    row = [question, correct_answer] + distractors
+                    if has_notes_column:
+                        row.append(notes if notes else "")
+                    writer.writerow(row)
                     questions_processed += 1
 
                 # Small delay between batches to not overwhelm local server
@@ -452,7 +472,7 @@ def main():
         print("Usage: python create_distractors.py input.csv [options]")
         print("")
         print("Required:")
-        print("  input.csv     Input CSV file (Question,Answer format)")
+        print("  input.csv     Input CSV file (Question,Answer[,Notes] format)")
         print("")
         print("Optional:")
         print("  --model MODEL       Local model name (default: llama3.2)")
@@ -462,11 +482,16 @@ def main():
         print("")
         print("Examples:")
         print("  python create_distractors.py questions.csv")
-        print("  python create_distractors.py questions.csv --model mistral")
+        print("  python create_distractors.py questions.csv --model mistral:7b-instruct")
         print("  python create_distractors.py questions.csv --batch-size 2")
+        print("")
+        print("Input CSV format:")
+        print("  Question,Answer        (basic format)")
+        print("  Question,Answer,Notes  (with optional notes)")
         print("")
         print("Output:")
         print("  Creates 'input_distractors.csv' with 8 AI-generated distractors per question")
+        print("  Preserves Notes column if present in input")
         print("")
         print("Setup (First time only):")
         print("  1. Install Ollama: https://ollama.ai/")
@@ -475,7 +500,7 @@ def main():
         print("")
         print("Available models (after installing Ollama):")
         print("  - llama3.2 (recommended, ~2GB)")
-        print("  - mistral (~4GB)")
+        print("  - mistral:7b-instruct (~4GB)")
         print("  - codellama (~4GB)")
         print("  - phi3 (~2GB)")
         print("")
