@@ -477,24 +477,21 @@
                         }
 
                         // Send answer to server for tracking (only for actual attempts)
-                        try {
-                            await fetch('/answer', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({
-                                    question_id: parseInt(questionId),
-                                    selected_answer: selectedAnswer,
-                                    correct_answer: correctAnswer
-                                })
-                            });
-                        } catch (error) {
-                            console.error('Error recording answer:', error);
-                        }
+                        // Fire and forget - don't block on this
+                        fetch('/answer', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                question_id: parseInt(questionId),
+                                selected_answer: selectedAnswer,
+                                correct_answer: correctAnswer
+                            })
+                        }).catch(error => console.error('Error recording answer:', error));
                     }
 
-                    // Show the "Next Question" button
+                    // Show the "Next Question" button immediately
                     nextButton.style.display = 'inline-block';
 
                     // If speech is disabled, auto-advance after 2 seconds
