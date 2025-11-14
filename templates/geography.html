@@ -25,62 +25,66 @@
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
             width: 100%;
-            max-width: 900px;
-            padding: 30px;
+            max-width: 1200px;
+            max-height: calc(100vh - 80px);
+            padding: 20px;
             text-align: center;
+            display: flex;
+            flex-direction: column;
         }
         h1 {
             color: #005a31;
-            margin-bottom: 25px;
+            margin-top: 0;
+            margin-bottom: 15px;
+            flex-shrink: 0;
         }
         .progress-container {
-            margin-bottom: 20px;
-            padding: 15px;
+            margin-bottom: 12px;
+            padding: 10px;
             background-color: #f8f9fa;
             border-radius: 8px;
             border: 1px solid #dee2e6;
-        }
-        .progress-text {
-            font-size: 0.9em;
-            color: #495057;
+            flex-shrink: 0;
         }
         .progress-stats {
-            font-size: 0.85em;
+            font-size: 0.8em;
             color: #6c757d;
-            margin-top: 5px;
+            margin-top: 3px;
         }
         .question {
-            font-size: 1.5em;
-            margin-bottom: 25px;
+            font-size: 1.3em;
+            margin-bottom: 15px;
             font-weight: bold;
             color: #005a31;
+            flex-shrink: 0;
         }
         .map-container {
-            margin-bottom: 25px;
+            margin-bottom: 15px;
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
-            max-height: 500px;
+            flex: 1;
+            min-height: 0;
         }
         .map-container.mode-2 {
-            max-height: none;
-            min-height: 600px;
+            min-height: unset;
         }
         .map-container svg {
             width: 100%;
             height: 100%;
             max-width: 100%;
-            max-height: 500px;
+            max-height: calc(100vh - 550px);
             border: 2px solid #ced4da;
             border-radius: 8px;
             background-color: white;
+            object-fit: contain;
         }
         .map-container.mode-2 svg {
-            max-height: 90vh;
             width: auto;
             height: auto;
-            max-width: 1200px;
+            max-width: 100%;
+            max-height: calc(100vh - 200px);
         }
         /* Mode 1: Highlighted state styling */
         .map-container svg path.highlighted {
@@ -112,14 +116,15 @@
         .options {
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 10px;
+            flex-shrink: 0;
         }
         .option-btn {
             background-color: #f8f9fa;
             border: 2px solid #ced4da;
             border-radius: 8px;
-            padding: 15px;
-            font-size: 1em;
+            padding: 12px;
+            font-size: 0.95em;
             cursor: pointer;
             transition: all 0.2s ease-in-out;
             text-align: left;
@@ -144,16 +149,17 @@
         }
         .next-btn {
             visibility: hidden; /* Hidden but reserves space */
-            margin-top: 25px;
+            margin-top: 15px;
             background-color: #ce1126;
             color: white;
             border: none;
             border-radius: 8px;
-            padding: 15px 30px;
-            font-size: 1.1em;
+            padding: 12px 25px;
+            font-size: 1em;
             font-weight: bold;
             cursor: pointer;
             text-decoration: none;
+            flex-shrink: 0;
         }
         .menu-bar {
             position: fixed;
@@ -195,9 +201,6 @@
 
         <!-- Progress indicator -->
         <div class="progress-container">
-            <div class="progress-text">
-                <strong>Progreso:</strong> {{ answered_count }} de {{ total_states }} estados practicados
-            </div>
             <div class="progress-stats">
                 Dominados: {{ mastered_count }} de {{ total_states }}
             </div>
