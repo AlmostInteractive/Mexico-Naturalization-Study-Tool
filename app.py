@@ -575,8 +575,8 @@ def calculate_geography_weight(geography_id, times_answered, times_correct, curs
     rolling_success_rate = recent_correct / recent_total
 
     # Weight calculation: lower success rate = higher weight
-    # 0% success = 2.0 weight, 50% success = 1.5 weight, 100% success = 1.0 weight
-    weight = 2.0 - rolling_success_rate
+    # 0% success = 5.0 weight, 50% success = 3.0 weight, 100% success = 1.0 weight
+    weight = 1.0 + (4.0 * (1.0 - rolling_success_rate))
     return max(1.0, weight)
 
 
@@ -721,21 +721,26 @@ def geography_quiz():
     state_number = geography_data['state_number']
     correct_state = geography_data['state_name']
 
-    # Get 3 random incorrect states as distractors
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT state_name FROM geography_questions
-        WHERE id != ?
-        ORDER BY RANDOM()
-        LIMIT 3
-    ''', (geography_id,))
-    distractors = [row['state_name'] for row in cursor.fetchall()]
-    conn.close()
+    # Randomly select mode (1 or 2)
+    mode = random.randint(1, 2)
 
-    # Combine correct answer with distractors and shuffle
-    options = distractors + [correct_state]
-    random.shuffle(options)
+    # Get 3 random incorrect states as distractors (for mode 1)
+    options = []
+    if mode == 1:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT state_name FROM geography_questions
+            WHERE id != ?
+            ORDER BY RANDOM()
+            LIMIT 3
+        ''', (geography_id,))
+        distractors = [row['state_name'] for row in cursor.fetchall()]
+        conn.close()
+
+        # Combine correct answer with distractors and shuffle
+        options = distractors + [correct_state]
+        random.shuffle(options)
 
     # Get progress stats
     conn = get_db_connection()
@@ -761,6 +766,7 @@ def geography_quiz():
         state_number=state_number,
         correct_state=correct_state,
         options=options,
+        mode=mode,
         total_states=stats['total'],
         answered_count=stats['answered_count'],
         mastered_count=mastered_count
@@ -812,6 +818,55 @@ def geography_debug():
         state_number=state_id,
         state_name=state_info['state_name']
     )
+
+
+@app.route('/geography_stats')
+def show_geography_stats():
+    """Show geography learning statistics."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT g.id, g.state_name, g.state_number, gs.times_answered, gs.times_correct,
+               gs.success_rate, gs.weight
+        FROM geography_questions g
+        JOIN geography_stats gs ON g.id = gs.geography_id
+        ORDER BY gs.weight DESC, g.state_number ASC
+    ''')
+
+    stats = cursor.fetchall()
+
+    # Convert to list of dicts for JSON serialization, including rolling success rate
+    stats_list = []
+    for stat in stats:
+        # Get rolling window success rate for this state
+        cursor.execute('''
+            SELECT is_correct FROM geography_attempts
+            WHERE geography_id = ?
+            ORDER BY attempt_timestamp DESC
+            LIMIT ?
+        ''', (stat['id'], RECENT_ATTEMPTS_WINDOW))
+
+        recent_attempts = cursor.fetchall()
+        if recent_attempts:
+            recent_correct = sum(1 for attempt in recent_attempts if attempt['is_correct'])
+            recent_total = len(recent_attempts)
+            rolling_success_rate = recent_correct / recent_total
+        else:
+            rolling_success_rate = 0.0
+
+        stats_list.append({
+            'state': f"{stat['state_number']}. {stat['state_name']}",
+            'times_answered': stat['times_answered'],
+            'times_correct': stat['times_correct'],
+            'lifetime_success_rate': f"{stat['success_rate']:.1%}",
+            'rolling_success_rate': f"{rolling_success_rate:.1%}",
+            'weight': f"{stat['weight']:.2f}"
+        })
+
+    conn.close()
+
+    return jsonify(stats_list)
 
 
 # --- Main execution block ---

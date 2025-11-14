@@ -63,6 +63,10 @@
             width: 100%;
             max-height: 500px;
         }
+        .map-container.mode-2 {
+            max-height: none;
+            min-height: 600px;
+        }
         .map-container svg {
             width: 100%;
             height: 100%;
@@ -72,10 +76,37 @@
             border-radius: 8px;
             background-color: white;
         }
-        /* Highlighted state styling */
+        .map-container.mode-2 svg {
+            max-height: 90vh;
+            width: auto;
+            height: auto;
+            max-width: 1200px;
+        }
+        /* Mode 1: Highlighted state styling */
         .map-container svg path.highlighted {
             fill: lightblue !important;
             stroke: blue !important;
+            stroke-width: 3 !important;
+        }
+        /* Mode 2: Hoverable paths */
+        .map-container.mode-2 svg path {
+            cursor: pointer;
+        }
+        .map-container.mode-2-hover svg path.hover {
+            fill: lightblue !important;
+            stroke: blue !important;
+            stroke-width: 3 !important;
+        }
+        /* Mode 2: Correct selection */
+        .map-container svg path.correct {
+            fill: #90EE90 !important;
+            stroke: #28a745 !important;
+            stroke-width: 3 !important;
+        }
+        /* Mode 2: Incorrect selection */
+        .map-container svg path.incorrect {
+            fill: #FFB6C1 !important;
+            stroke: #dc3545 !important;
             stroke-width: 3 !important;
         }
         .options {
@@ -112,7 +143,7 @@
             cursor: not-allowed;
         }
         .next-btn {
-            display: none;
+            visibility: hidden; /* Hidden but reserves space */
             margin-top: 25px;
             background-color: #ce1126;
             color: white;
@@ -172,23 +203,30 @@
             </div>
         </div>
 
+        {% if mode == 1 %}
         <div class="question">¿Qué estado es este?</div>
+        {% else %}
+        <div class="question">Encuentra: {{ correct_state }}</div>
+        {% endif %}
 
         <!-- Map Container -->
-        <div class="map-container">
+        <div class="map-container {% if mode == 2 %}mode-2 mode-2-hover{% endif %}">
             <div id="map-placeholder">Cargando mapa...</div>
         </div>
 
+        {% if mode == 1 %}
         <div class="options">
             {% for option in options %}
                 <button class="option-btn">{{ option }}</button>
             {% endfor %}
         </div>
+        {% endif %}
 
         <!-- Hidden data for JavaScript -->
         <div id="correct-state" style="display: none;">{{ correct_state }}</div>
         <div id="geography-id" style="display: none;">{{ geography_id }}</div>
         <div id="state-number" style="display: none;">{{ state_number }}</div>
+        <div id="mode" style="display: none;">{{ mode }}</div>
 
         <a href="#" id="next-btn" class="next-btn">Siguiente Pregunta</a>
     </div>
@@ -200,7 +238,10 @@
             const correctState = document.getElementById('correct-state').textContent.trim();
             const geographyId = document.getElementById('geography-id').textContent.trim();
             const stateNumber = parseInt(document.getElementById('state-number').textContent.trim());
+            const mode = parseInt(document.getElementById('mode').textContent.trim());
             const nextButton = document.getElementById('next-btn');
+
+            console.log(`Mode: ${mode}, State: ${stateNumber} (${correctState})`);
 
             // Load the clean SVG map (now with state-based IDs)
             fetch('/static/States_of_Mexico.svg')
@@ -226,52 +267,136 @@
                     const statePaths = svg.querySelectorAll(`path[data-state-number="${stateNumber}"]`);
                     console.log(`Found ${statePaths.length} path(s) for state ${stateNumber}`);
 
-                    if (statePaths.length > 0) {
-                        const highlightedPaths = [];
+                    if (mode === 1) {
+                        // Mode 1: Highlight the state
+                        if (statePaths.length > 0) {
+                            const highlightedPaths = [];
 
-                        // Highlight all paths for this state
-                        statePaths.forEach(path => {
-                            path.classList.add('highlighted');
-                            highlightedPaths.push(path);
-                            console.log(`Highlighted path with ID: ${path.id}`);
-                        });
-
-                        // Center the viewBox on the highlighted state
-                        try {
-                            // Get the bounding box of the entire SVG content
-                            const svgBBox = svg.getBBox();
-                            console.log(`SVG BBox: x=${svgBBox.x}, y=${svgBBox.y}, width=${svgBBox.width}, height=${svgBBox.height}`);
-
-                            // Calculate the combined bounding box of all highlighted paths
-                            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-                            highlightedPaths.forEach(path => {
-                                const bbox = path.getBBox();
-                                minX = Math.min(minX, bbox.x);
-                                minY = Math.min(minY, bbox.y);
-                                maxX = Math.max(maxX, bbox.x + bbox.width);
-                                maxY = Math.max(maxY, bbox.y + bbox.height);
+                            // Highlight all paths for this state
+                            statePaths.forEach(path => {
+                                path.classList.add('highlighted');
+                                highlightedPaths.push(path);
+                                console.log(`Highlighted path with ID: ${path.id}`);
                             });
 
-                            const stateCenterX = (minX + maxX) / 2;
-                            const stateCenterY = (minY + maxY) / 2;
+                            // Center the viewBox on the highlighted state
+                            try {
+                                // Get the bounding box of the entire SVG content
+                                const svgBBox = svg.getBBox();
+                                console.log(`SVG BBox: x=${svgBBox.x}, y=${svgBBox.y}, width=${svgBBox.width}, height=${svgBBox.height}`);
 
-                            // Use the full SVG dimensions as the viewBox size
-                            const viewBoxWidth = svgBBox.width;
-                            const viewBoxHeight = svgBBox.height;
+                                // Calculate the combined bounding box of all highlighted paths
+                                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                                highlightedPaths.forEach(path => {
+                                    const bbox = path.getBBox();
+                                    minX = Math.min(minX, bbox.x);
+                                    minY = Math.min(minY, bbox.y);
+                                    maxX = Math.max(maxX, bbox.x + bbox.width);
+                                    maxY = Math.max(maxY, bbox.y + bbox.height);
+                                });
 
-                            // Calculate new viewBox to center on the state
-                            const newX = stateCenterX - viewBoxWidth / 2;
-                            const newY = stateCenterY - viewBoxHeight / 2;
+                                const stateCenterX = (minX + maxX) / 2;
+                                const stateCenterY = (minY + maxY) / 2;
 
-                            // Set new viewBox
-                            svg.setAttribute('viewBox', `${newX} ${newY} ${viewBoxWidth} ${viewBoxHeight}`);
+                                // Use the full SVG dimensions as the viewBox size
+                                const viewBoxWidth = svgBBox.width;
+                                const viewBoxHeight = svgBBox.height;
 
-                            console.log(`Centered viewBox on state at (${stateCenterX}, ${stateCenterY}) with dimensions (${viewBoxWidth} x ${viewBoxHeight})`);
-                        } catch (error) {
-                            console.warn('Could not center on highlighted state:', error);
+                                // Calculate new viewBox to center on the state
+                                const newX = stateCenterX - viewBoxWidth / 2;
+                                const newY = stateCenterY - viewBoxHeight / 2;
+
+                                // Set new viewBox
+                                svg.setAttribute('viewBox', `${newX} ${newY} ${viewBoxWidth} ${viewBoxHeight}`);
+
+                                console.log(`Centered viewBox on state at (${stateCenterX}, ${stateCenterY}) with dimensions (${viewBoxWidth} x ${viewBoxHeight})`);
+                            } catch (error) {
+                                console.warn('Could not center on highlighted state:', error);
+                            }
+                        } else {
+                            console.warn(`Could not find paths for state number ${stateNumber}`);
                         }
-                    } else {
-                        console.warn(`Could not find paths for state number ${stateNumber}`);
+                    } else if (mode === 2) {
+                        // Mode 2: Click to select state
+                        const allPaths = svg.querySelectorAll('path');
+                        let answerSubmitted = false;
+
+                        // Add hover listeners to highlight all paths of a state
+                        allPaths.forEach(path => {
+                            path.addEventListener('mouseenter', () => {
+                                const hoveredStateNum = path.getAttribute('data-state-number');
+                                if (hoveredStateNum) {
+                                    const statePaths = svg.querySelectorAll(`path[data-state-number="${hoveredStateNum}"]`);
+                                    statePaths.forEach(p => p.classList.add('hover'));
+                                }
+                            });
+
+                            path.addEventListener('mouseleave', () => {
+                                const hoveredStateNum = path.getAttribute('data-state-number');
+                                if (hoveredStateNum) {
+                                    const statePaths = svg.querySelectorAll(`path[data-state-number="${hoveredStateNum}"]`);
+                                    statePaths.forEach(p => p.classList.remove('hover'));
+                                }
+                            });
+                        });
+
+                        // Add click listeners
+                        allPaths.forEach(path => {
+                            path.addEventListener('click', () => {
+                                if (answerSubmitted) {
+                                    return;
+                                }
+
+                                const clickedStateNum = path.getAttribute('data-state-number');
+                                const clickedStateName = path.getAttribute('data-state-name');
+
+                                console.log(`Clicked on state ${clickedStateNum} (${clickedStateName})`);
+
+                                // Get all paths for clicked state
+                                const clickedPaths = svg.querySelectorAll(`path[data-state-number="${clickedStateNum}"]`);
+                                // Get all paths for correct state
+                                const correctPaths = svg.querySelectorAll(`path[data-state-number="${stateNumber}"]`);
+
+                                const isCorrect = clickedStateNum === stateNumber.toString();
+
+                                // Disable hover highlighting by removing mode-2-hover class
+                                const mapContainer = document.querySelector('.map-container');
+                                mapContainer.classList.remove('mode-2-hover');
+
+                                if (isCorrect) {
+                                    // Correct answer - highlight in green
+                                    clickedPaths.forEach(p => p.classList.add('correct'));
+                                } else {
+                                    // Incorrect answer - highlight clicked in red, correct in green
+                                    clickedPaths.forEach(p => p.classList.add('incorrect'));
+                                    correctPaths.forEach(p => p.classList.add('correct'));
+                                }
+
+                                // Send answer to server for tracking
+                                fetch('/geography_answer', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({
+                                        geography_id: parseInt(geographyId),
+                                        selected_answer: clickedStateName,
+                                        correct_answer: correctState
+                                    })
+                                }).catch(error => console.error('Error recording answer:', error));
+
+                                // Show next button
+                                nextButton.style.visibility = 'visible';
+
+                                // Mark answer as submitted
+                                answerSubmitted = true;
+
+                                // Auto-advance after 2 seconds
+                                setTimeout(() => {
+                                    window.location.href = '/geography?prev=' + geographyId;
+                                }, isCorrect ? 2000 : 4000);
+                            });
+                        });
                     }
                 })
                 .catch(error => {
@@ -326,7 +451,7 @@
                     }).catch(error => console.error('Error recording answer:', error));
 
                     // Show next button
-                    nextButton.style.display = 'inline-block';
+                    nextButton.style.visibility = 'visible';
 
                     // Auto-advance after 2 seconds
                     setTimeout(() => {

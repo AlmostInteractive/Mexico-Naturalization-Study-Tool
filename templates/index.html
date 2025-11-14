@@ -73,7 +73,7 @@
             cursor: not-allowed;
         }
         .next-btn {
-            display: none; /* Hidden by default */
+            visibility: hidden; /* Hidden but reserves space */
             margin-top: 25px;
             background-color: #ce1126; /* Mexican flag red */
             color: white;
@@ -149,7 +149,7 @@
             <button id="delete-question-btn" class="menu-toggle" style="background-color: #dc3545; border-color: #dc3545;" title="Eliminar esta pregunta de la base de datos">🗑️ Eliminar</button>
         </div>
         <div class="menu-item">
-            <a href="/geography" style="color: white; text-decoration: none; border: 2px solid white; padding: 4px 12px; border-radius: 4px;">🗺️ Geografía</a>
+            <a href="/geography" id="geography-link" style="color: white; text-decoration: none; border: 2px solid white; padding: 4px 12px; border-radius: 4px;">🗺️ Geografía</a>
         </div>
     </div>
 
@@ -314,6 +314,7 @@
             const speechRateSelect = document.getElementById('speech-rate');
             const replayButton = document.getElementById('replay-speech');
             const deleteButton = document.getElementById('delete-question-btn');
+            const geographyLink = document.getElementById('geography-link');
 
             // Initialize menu controls
             updateSpeechToggleButton();
@@ -342,6 +343,11 @@
 
             // Replay speech functionality
             replayButton.addEventListener('click', speakQuestion);
+
+            // Geography link - stop speech before navigating
+            geographyLink.addEventListener('click', () => {
+                speechSynthesis.cancel();
+            });
 
             // Next button functionality
             nextButton.addEventListener('click', (e) => {
@@ -495,7 +501,7 @@
                     }
 
                     // Show the "Next Question" button immediately
-                    nextButton.style.display = 'inline-block';
+                    nextButton.style.visibility = 'visible';
 
                     // If speech is disabled, auto-advance after 2 seconds
                     if (!speechEnabled) {
