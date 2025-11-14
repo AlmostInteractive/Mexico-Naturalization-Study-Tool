@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geography Debug - State {{ state_number }}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #005a31;
+            margin-bottom: 10px;
+        }
+        .info {
+            background-color: #e8f5e9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #005a31;
+        }
+        .info-item {
+            margin: 5px 0;
+        }
+        .info-item strong {
+            color: #005a31;
+        }
+        .map-container {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            max-height: 600px;
+            border: 2px solid #ced4da;
+            border-radius: 8px;
+            background-color: white;
+        }
+        .map-container svg {
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 600px;
+        }
+        .map-container svg path.highlighted {
+            fill: lightblue !important;
+            stroke: blue !important;
+            stroke-width: 3 !important;
+        }
+        .map-container svg path:hover {
+            opacity: 0.7;
+            cursor: pointer;
+        }
+        .hover-info {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #005a31;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            font-family: monospace;
+            font-size: 0.9em;
+            max-width: 300px;
+            display: none;
+            z-index: 1000;
+        }
+        .hover-info.visible {
+            display: block;
+        }
+        .hover-info div {
+            margin: 5px 0;
+        }
+        .hover-info strong {
+            color: #a5d6a7;
+        }
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            gap: 20px;
+        }
+        .nav-btn {
+            background-color: #005a31;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .nav-btn:hover {
+            background-color: #004020;
+        }
+        .nav-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .state-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .state-selector input {
+            width: 60px;
+            padding: 8px;
+            border: 2px solid #ced4da;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+        .debug-log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 0.9em;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .debug-log div {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Hover info display -->
+    <div class="hover-info" id="hover-info">
+        <div><strong>Hovering over:</strong></div>
+        <div id="hover-id">-</div>
+        <div id="hover-state">-</div>
+        <div id="hover-coords">-</div>
+    </div>
+
+    <div class="container">
+        <h1>Geography Debug</h1>
+
+        <div class="info">
+            <div class="info-item"><strong>State Number:</strong> {{ state_number }}</div>
+            <div class="info-item"><strong>State Name:</strong> {{ state_name }}</div>
+            <div class="info-item" id="path-count"><strong>Paths Found:</strong> Loading...</div>
+            <div class="info-item" id="path-ids"><strong>Path IDs:</strong> Loading...</div>
+        </div>
+
+        <div class="map-container">
+            <div id="map-placeholder">Loading map...</div>
+        </div>
+
+        <div class="navigation">
+            <a href="/geographyDebug?id={{ state_number - 1 if state_number > 1 else 32 }}"
+               class="nav-btn">← Previous ({{ state_number - 1 if state_number > 1 else 32 }})</a>
+
+            <div class="state-selector">
+                <label for="state-input">State:</label>
+                <button class="nav-btn" onclick="decrementState()">-</button>
+                <input type="number" id="state-input" min="1" max="32" value="{{ state_number }}">
+                <button class="nav-btn" onclick="incrementState()">+</button>
+                <button class="nav-btn" onclick="goToState()">Go</button>
+            </div>
+
+            <a href="/geographyDebug?id={{ state_number + 1 if state_number < 32 else 1 }}"
+               class="nav-btn">Next ({{ state_number + 1 if state_number < 32 else 1 }}) →</a>
+        </div>
+
+        <div class="debug-log" id="debug-log">
+            <div><strong>Debug Log:</strong></div>
+        </div>
+    </div>
+
+    <script>
+        const stateNumber = {{ state_number }};
+        const debugLog = document.getElementById('debug-log');
+
+        function log(message) {
+            const div = document.createElement('div');
+            div.textContent = message;
+            debugLog.appendChild(div);
+            console.log(message);
+        }
+
+        function goToState() {
+            const input = document.getElementById('state-input');
+            const stateId = parseInt(input.value);
+            if (stateId >= 1 && stateId <= 32) {
+                window.location.href = `/geographyDebug?id=${stateId}`;
+            } else {
+                alert('Please enter a state number between 1 and 32');
+            }
+        }
+
+        function incrementState() {
+            const input = document.getElementById('state-input');
+            let stateId = parseInt(input.value);
+            stateId = stateId < 32 ? stateId + 1 : 1; // Wrap to 1 after 32
+            window.location.href = `/geographyDebug?id=${stateId}`;
+        }
+
+        function decrementState() {
+            const input = document.getElementById('state-input');
+            let stateId = parseInt(input.value);
+            stateId = stateId > 1 ? stateId - 1 : 32; // Wrap to 32 before 1
+            window.location.href = `/geographyDebug?id=${stateId}`;
+        }
+
+        // Allow Enter key in input
+        document.getElementById('state-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                goToState();
+            }
+        });
+
+        // Load the SVG map
+        fetch('/static/States_of_Mexico.svg')
+            .then(response => response.text())
+            .then(svgText => {
+                log('✓ SVG loaded successfully');
+
+                // Parse SVG
+                const parser = new DOMParser();
+                const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+                const svg = svgDoc.querySelector('svg');
+
+                if (!svg) {
+                    throw new Error('No SVG element found in the file');
+                }
+
+                // Insert SVG
+                const mapPlaceholder = document.getElementById('map-placeholder');
+                mapPlaceholder.innerHTML = '';
+                mapPlaceholder.appendChild(svg);
+
+                log('✓ SVG inserted into page');
+
+                // Ensure SVG scales properly
+                svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+                // Add hover listeners to all paths
+                const allPaths = svg.querySelectorAll('path');
+                const hoverInfo = document.getElementById('hover-info');
+                const hoverId = document.getElementById('hover-id');
+                const hoverState = document.getElementById('hover-state');
+                const hoverCoords = document.getElementById('hover-coords');
+
+                allPaths.forEach(path => {
+                    path.addEventListener('mouseenter', (e) => {
+                        const pathId = path.id || '(no id)';
+                        const stateNum = path.getAttribute('data-state-number') || '?';
+                        const stateName = path.getAttribute('data-state-name') || '?';
+                        const bbox = path.getBBox();
+
+                        hoverId.textContent = `ID: ${pathId}`;
+                        hoverState.textContent = `State: ${stateNum} (${stateName})`;
+                        hoverCoords.textContent = `BBox: ${bbox.width.toFixed(0)}x${bbox.height.toFixed(0)} at (${bbox.x.toFixed(0)}, ${bbox.y.toFixed(0)})`;
+
+                        hoverInfo.classList.add('visible');
+                    });
+
+                    path.addEventListener('mouseleave', () => {
+                        hoverInfo.classList.remove('visible');
+                    });
+                });
+
+                log(`✓ Added hover listeners to ${allPaths.length} paths`);
+
+                // Get all paths for this state
+                const statePaths = svg.querySelectorAll(`path[data-state-number="${stateNumber}"]`);
+                const stateGroups = svg.querySelectorAll(`g[data-state-number="${stateNumber}"]`);
+
+                log(`Found ${statePaths.length} path(s) with data-state-number="${stateNumber}"`);
+                log(`Found ${stateGroups.length} group(s) with data-state-number="${stateNumber}"`);
+
+                // Update info display
+                document.getElementById('path-count').innerHTML =
+                    `<strong>Paths Found:</strong> ${statePaths.length} path(s), ${stateGroups.length} group(s)`;
+
+                const pathIds = Array.from(statePaths).map(p => p.id).join(', ');
+                const groupIds = Array.from(stateGroups).map(g => g.id).join(', ');
+                document.getElementById('path-ids').innerHTML =
+                    `<strong>IDs:</strong> ${pathIds || 'none'}${groupIds ? ' | Groups: ' + groupIds : ''}`;
+
+                // Highlight all paths
+                if (statePaths.length > 0) {
+                    const highlightedPaths = [];
+
+                    statePaths.forEach(path => {
+                        path.classList.add('highlighted');
+                        highlightedPaths.push(path);
+                        log(`✓ Highlighted path: ${path.id}`);
+                    });
+
+                    // Center the viewBox on the highlighted state
+                    try {
+                        const svgBBox = svg.getBBox();
+                        log(`SVG BBox: ${svgBBox.width}x${svgBBox.height}`);
+
+                        // Calculate combined bounding box
+                        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                        highlightedPaths.forEach(path => {
+                            const bbox = path.getBBox();
+                            minX = Math.min(minX, bbox.x);
+                            minY = Math.min(minY, bbox.y);
+                            maxX = Math.max(maxX, bbox.x + bbox.width);
+                            maxY = Math.max(maxY, bbox.y + bbox.height);
+                        });
+
+                        const stateCenterX = (minX + maxX) / 2;
+                        const stateCenterY = (minY + maxY) / 2;
+
+                        const viewBoxWidth = svgBBox.width;
+                        const viewBoxHeight = svgBBox.height;
+
+                        const newX = stateCenterX - viewBoxWidth / 2;
+                        const newY = stateCenterY - viewBoxHeight / 2;
+
+                        svg.setAttribute('viewBox', `${newX} ${newY} ${viewBoxWidth} ${viewBoxHeight}`);
+
+                        log(`✓ Centered viewBox on state at (${stateCenterX.toFixed(1)}, ${stateCenterY.toFixed(1)})`);
+                    } catch (error) {
+                        log(`⚠ Could not center on highlighted state: ${error.message}`);
+                    }
+                } else {
+                    log('⚠ No paths found for this state number');
+                }
+            })
+            .catch(error => {
+                log(`✗ Error loading SVG: ${error.message}`);
+                document.getElementById('map-placeholder').textContent = 'Error loading map: ' + error.message;
+            });
+    </script>
+</body>
+</html>

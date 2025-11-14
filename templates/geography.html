@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Geografía de México - Práctica</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .quiz-container {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 900px;
+            padding: 30px;
+            text-align: center;
+        }
+        h1 {
+            color: #005a31;
+            margin-bottom: 25px;
+        }
+        .progress-container {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .progress-text {
+            font-size: 0.9em;
+            color: #495057;
+        }
+        .progress-stats {
+            font-size: 0.85em;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        .question {
+            font-size: 1.5em;
+            margin-bottom: 25px;
+            font-weight: bold;
+            color: #005a31;
+        }
+        .map-container {
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            max-height: 500px;
+        }
+        .map-container svg {
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 500px;
+            border: 2px solid #ced4da;
+            border-radius: 8px;
+            background-color: white;
+        }
+        /* Highlighted state styling */
+        .map-container svg path.highlighted {
+            fill: lightblue !important;
+            stroke: blue !important;
+            stroke-width: 3 !important;
+        }
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .option-btn {
+            background-color: #f8f9fa;
+            border: 2px solid #ced4da;
+            border-radius: 8px;
+            padding: 15px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            text-align: left;
+        }
+        .option-btn:hover:not(:disabled) {
+            border-color: #005a31;
+            background-color: #e8f5e9;
+        }
+        .option-btn.correct {
+            background-color: #28a745;
+            border-color: #28a745;
+            color: white;
+            font-weight: bold;
+        }
+        .option-btn.incorrect {
+            background-color: #dc3545;
+            border-color: #dc3545;
+            color: white;
+        }
+        .option-btn:disabled {
+            cursor: not-allowed;
+        }
+        .next-btn {
+            display: none;
+            margin-top: 25px;
+            background-color: #ce1126;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .menu-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: #005a31;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 20px;
+            font-size: 0.9em;
+            z-index: 1000;
+            border-radius: 0 0 8px 0;
+        }
+        .menu-item a {
+            color: white;
+            text-decoration: none;
+            border: 2px solid white;
+            padding: 4px 12px;
+            border-radius: 4px;
+        }
+        .menu-item a:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <!-- Menu Bar -->
+    <div class="menu-bar">
+        <div class="menu-item">
+            <a href="/">← Volver a Preguntas de Texto</a>
+        </div>
+    </div>
+
+    <div class="quiz-container">
+        <h1>Geografía de México</h1>
+
+        <!-- Progress indicator -->
+        <div class="progress-container">
+            <div class="progress-text">
+                <strong>Progreso:</strong> {{ answered_count }} de {{ total_states }} estados practicados
+            </div>
+            <div class="progress-stats">
+                Dominados: {{ mastered_count }} de {{ total_states }}
+            </div>
+        </div>
+
+        <div class="question">¿Qué estado es este?</div>
+
+        <!-- Map Container -->
+        <div class="map-container">
+            <div id="map-placeholder">Cargando mapa...</div>
+        </div>
+
+        <div class="options">
+            {% for option in options %}
+                <button class="option-btn">{{ option }}</button>
+            {% endfor %}
+        </div>
+
+        <!-- Hidden data for JavaScript -->
+        <div id="correct-state" style="display: none;">{{ correct_state }}</div>
+        <div id="geography-id" style="display: none;">{{ geography_id }}</div>
+        <div id="state-number" style="display: none;">{{ state_number }}</div>
+
+        <a href="#" id="next-btn" class="next-btn">Siguiente Pregunta</a>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const mapPlaceholder = document.getElementById('map-placeholder');
+            const optionsContainer = document.querySelector('.options');
+            const correctState = document.getElementById('correct-state').textContent.trim();
+            const geographyId = document.getElementById('geography-id').textContent.trim();
+            const stateNumber = parseInt(document.getElementById('state-number').textContent.trim());
+            const nextButton = document.getElementById('next-btn');
+
+            // Load the clean SVG map (now with state-based IDs)
+            fetch('/static/States_of_Mexico.svg')
+                .then(response => response.text())
+                .then(svgText => {
+                    // Create a temporary container to parse the SVG
+                    const parser = new DOMParser();
+                    const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+                    const svg = svgDoc.querySelector('svg');
+
+                    if (!svg) {
+                        throw new Error('No SVG element found in the file');
+                    }
+
+                    // Clear placeholder and insert the SVG
+                    mapPlaceholder.innerHTML = '';
+                    mapPlaceholder.appendChild(svg);
+
+                    // Ensure SVG scales properly
+                    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+                    // Get all paths for this state by data-state-number attribute
+                    const statePaths = svg.querySelectorAll(`path[data-state-number="${stateNumber}"]`);
+                    console.log(`Found ${statePaths.length} path(s) for state ${stateNumber}`);
+
+                    if (statePaths.length > 0) {
+                        const highlightedPaths = [];
+
+                        // Highlight all paths for this state
+                        statePaths.forEach(path => {
+                            path.classList.add('highlighted');
+                            highlightedPaths.push(path);
+                            console.log(`Highlighted path with ID: ${path.id}`);
+                        });
+
+                        // Center the viewBox on the highlighted state
+                        try {
+                            // Get the bounding box of the entire SVG content
+                            const svgBBox = svg.getBBox();
+                            console.log(`SVG BBox: x=${svgBBox.x}, y=${svgBBox.y}, width=${svgBBox.width}, height=${svgBBox.height}`);
+
+                            // Calculate the combined bounding box of all highlighted paths
+                            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                            highlightedPaths.forEach(path => {
+                                const bbox = path.getBBox();
+                                minX = Math.min(minX, bbox.x);
+                                minY = Math.min(minY, bbox.y);
+                                maxX = Math.max(maxX, bbox.x + bbox.width);
+                                maxY = Math.max(maxY, bbox.y + bbox.height);
+                            });
+
+                            const stateCenterX = (minX + maxX) / 2;
+                            const stateCenterY = (minY + maxY) / 2;
+
+                            // Use the full SVG dimensions as the viewBox size
+                            const viewBoxWidth = svgBBox.width;
+                            const viewBoxHeight = svgBBox.height;
+
+                            // Calculate new viewBox to center on the state
+                            const newX = stateCenterX - viewBoxWidth / 2;
+                            const newY = stateCenterY - viewBoxHeight / 2;
+
+                            // Set new viewBox
+                            svg.setAttribute('viewBox', `${newX} ${newY} ${viewBoxWidth} ${viewBoxHeight}`);
+
+                            console.log(`Centered viewBox on state at (${stateCenterX}, ${stateCenterY}) with dimensions (${viewBoxWidth} x ${viewBoxHeight})`);
+                        } catch (error) {
+                            console.warn('Could not center on highlighted state:', error);
+                        }
+                    } else {
+                        console.warn(`Could not find paths for state number ${stateNumber}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading SVG:', error);
+                    mapPlaceholder.textContent = 'Error al cargar el mapa: ' + error.message;
+                });
+
+            // Next button functionality
+            nextButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.location.href = '/geography?prev=' + geographyId;
+            });
+
+            // Answer selection handling
+            optionsContainer.addEventListener('click', async (event) => {
+                if (event.target.classList.contains('option-btn') && !event.target.disabled) {
+                    const selectedOption = event.target;
+                    const allOptions = optionsContainer.querySelectorAll('.option-btn');
+                    const selectedAnswer = selectedOption.textContent;
+
+                    // Disable all buttons
+                    allOptions.forEach(btn => {
+                        btn.disabled = true;
+                    });
+
+                    // Check if answer is correct
+                    const isCorrect = selectedAnswer === correctState;
+
+                    if (isCorrect) {
+                        selectedOption.classList.add('correct');
+                    } else {
+                        selectedOption.classList.add('incorrect');
+                        // Highlight the correct answer
+                        allOptions.forEach(btn => {
+                            if (btn.textContent === correctState) {
+                                btn.classList.add('correct');
+                            }
+                        });
+                    }
+
+                    // Send answer to server for tracking
+                    fetch('/geography_answer', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            geography_id: parseInt(geographyId),
+                            selected_answer: selectedAnswer,
+                            correct_answer: correctState
+                        })
+                    }).catch(error => console.error('Error recording answer:', error));
+
+                    // Show next button
+                    nextButton.style.display = 'inline-block';
+
+                    // Auto-advance after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = '/geography?prev=' + geographyId;
+                    }, 2000);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

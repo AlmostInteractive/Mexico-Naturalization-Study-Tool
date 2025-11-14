@@ -530,6 +530,290 @@ def show_progress():
     })
 
 
+# --- Geography Quiz Functions ---
+def is_geography_mastered(geography_id, cursor):
+    """Check if a geography question is mastered (80%+ rolling success rate, 3+ attempts)."""
+    # Calculate rolling success rate from recent attempts
+    cursor.execute('''
+        SELECT is_correct FROM geography_attempts
+        WHERE geography_id = ?
+        ORDER BY attempt_timestamp DESC
+        LIMIT ?
+    ''', (geography_id, RECENT_ATTEMPTS_WINDOW))
+
+    recent_attempts = cursor.fetchall()
+    if not recent_attempts:
+        return False
+
+    recent_correct = sum(1 for attempt in recent_attempts if attempt['is_correct'])
+    recent_total = len(recent_attempts)
+    rolling_success_rate = recent_correct / recent_total
+
+    return recent_total >= 3 and rolling_success_rate >= 0.8
+
+
+def calculate_geography_weight(geography_id, times_answered, times_correct, cursor):
+    """Calculate weight for a geography question based on rolling success rate."""
+    if times_answered < 3:
+        # Not enough attempts yet, use default weight
+        return 1.0
+
+    # Get rolling success rate
+    cursor.execute('''
+        SELECT is_correct FROM geography_attempts
+        WHERE geography_id = ?
+        ORDER BY attempt_timestamp DESC
+        LIMIT ?
+    ''', (geography_id, RECENT_ATTEMPTS_WINDOW))
+
+    recent_attempts = cursor.fetchall()
+    if not recent_attempts:
+        return 1.0
+
+    recent_correct = sum(1 for attempt in recent_attempts if attempt['is_correct'])
+    recent_total = len(recent_attempts)
+    rolling_success_rate = recent_correct / recent_total
+
+    # Weight calculation: lower success rate = higher weight
+    # 0% success = 2.0 weight, 50% success = 1.5 weight, 100% success = 1.0 weight
+    weight = 2.0 - rolling_success_rate
+    return max(1.0, weight)
+
+
+def increment_mastered_geography_weights(cursor, increment=WEIGHT_INCREMENT):
+    """Increment weights for mastered geography questions only."""
+    cursor.execute('SELECT id FROM geography_questions')
+    all_geographies = cursor.fetchall()
+
+    for geo_row in all_geographies:
+        geography_id = geo_row['id']
+        if is_geography_mastered(geography_id, cursor):
+            cursor.execute('''
+                UPDATE geography_stats
+                SET weight = weight + ?
+                WHERE geography_id = ?
+            ''', (increment, geography_id))
+
+
+def update_geography_stats(geography_id, is_correct):
+    """Update statistics for a geography question after it's been answered."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # First increment weights for mastered geography questions only
+    increment_mastered_geography_weights(cursor)
+
+    # Record the individual attempt
+    cursor.execute('''
+        INSERT INTO geography_attempts (geography_id, is_correct)
+        VALUES (?, ?)
+    ''', (geography_id, is_correct))
+
+    # Get current stats
+    cursor.execute('''
+        SELECT times_answered, times_correct FROM geography_stats
+        WHERE geography_id = ?
+    ''', (geography_id,))
+
+    result = cursor.fetchone()
+    times_answered = result['times_answered'] + 1
+    times_correct = result['times_correct'] + (1 if is_correct else 0)
+
+    # Calculate success rate
+    success_rate = times_correct / times_answered
+
+    # Calculate weight based on mastery status
+    if is_geography_mastered(geography_id, cursor):
+        # Mastered: reset to 1 if answered correctly, keep current if wrong
+        if is_correct:
+            weight = 1.0
+        else:
+            cursor.execute('SELECT weight FROM geography_stats WHERE geography_id = ?', (geography_id,))
+            current_weight = cursor.fetchone()['weight']
+            weight = current_weight
+    else:
+        # Unmastered: use rolling success rate based weight
+        weight = calculate_geography_weight(geography_id, times_answered, times_correct, cursor)
+
+    # Update stats
+    cursor.execute('''
+        UPDATE geography_stats
+        SET times_answered = ?, times_correct = ?, success_rate = ?, weight = ?
+        WHERE geography_id = ?
+    ''', (times_answered, times_correct, success_rate, weight, geography_id))
+
+    conn.commit()
+    conn.close()
+
+
+def get_weighted_geography_question(exclude_geography_id=None):
+    """Select a geography question using 70/30 strategy: 70% unmastered, 30% mastered."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get all geography questions with their stats
+    cursor.execute('''
+        SELECT g.id, g.state_number, g.state_name, gs.weight
+        FROM geography_questions g
+        JOIN geography_stats gs ON g.id = gs.geography_id
+    ''')
+
+    geographies = cursor.fetchall()
+
+    # Filter out the excluded question if specified
+    if exclude_geography_id is not None:
+        geographies = [g for g in geographies if g['id'] != exclude_geography_id]
+
+    if not geographies:
+        conn.close()
+        return None
+
+    # Separate into mastered and unmastered
+    unmastered = [g for g in geographies if not is_geography_mastered(g['id'], cursor)]
+    mastered = [g for g in geographies if is_geography_mastered(g['id'], cursor)]
+
+    # 70/30 selection strategy
+    if random.random() < 0.7:
+        # 70% chance: Select from unmastered questions
+        if unmastered:
+            weights = [g['weight'] for g in unmastered]
+            selected = random.choices(unmastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+        # Fallback to mastered if no unmastered questions
+        if mastered:
+            weights = [g['weight'] for g in mastered]
+            selected = random.choices(mastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+    else:
+        # 30% chance: Select from mastered questions
+        if mastered:
+            weights = [g['weight'] for g in mastered]
+            selected = random.choices(mastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+        # Fallback to unmastered if no mastered questions
+        if unmastered:
+            weights = [g['weight'] for g in unmastered]
+            selected = random.choices(unmastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+
+    conn.close()
+    return None
+
+
+# --- Geography Routes ---
+@app.route('/geography')
+def geography_quiz():
+    """Display the geography quiz page."""
+    # Get previous question ID to avoid repeating
+    prev_geography_id = request.args.get('prev', type=int)
+
+    # Select a geography question using weighted probability
+    geography_data = get_weighted_geography_question(exclude_geography_id=prev_geography_id)
+
+    if not geography_data:
+        return "No geography questions available!", 500
+
+    geography_id = geography_data['id']
+    state_number = geography_data['state_number']
+    correct_state = geography_data['state_name']
+
+    # Get 3 random incorrect states as distractors
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT state_name FROM geography_questions
+        WHERE id != ?
+        ORDER BY RANDOM()
+        LIMIT 3
+    ''', (geography_id,))
+    distractors = [row['state_name'] for row in cursor.fetchall()]
+    conn.close()
+
+    # Combine correct answer with distractors and shuffle
+    options = distractors + [correct_state]
+    random.shuffle(options)
+
+    # Get progress stats
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT COUNT(*) as total,
+               SUM(CASE WHEN times_answered >= 3 THEN 1 ELSE 0 END) as answered_enough,
+               COUNT(CASE WHEN times_answered >= 3 THEN 1 END) as answered_count
+        FROM geography_stats
+    ''')
+    stats = cursor.fetchone()
+
+    # Count mastered questions
+    cursor.execute('SELECT id FROM geography_questions')
+    all_geo_ids = cursor.fetchall()
+    mastered_count = sum(1 for geo_row in all_geo_ids if is_geography_mastered(geo_row['id'], cursor))
+
+    conn.close()
+
+    return render_template(
+        'geography.html',
+        geography_id=geography_id,
+        state_number=state_number,
+        correct_state=correct_state,
+        options=options,
+        total_states=stats['total'],
+        answered_count=stats['answered_count'],
+        mastered_count=mastered_count
+    )
+
+
+@app.route('/geography_answer', methods=['POST'])
+def record_geography_answer():
+    """Record the user's answer to a geography question."""
+    data = request.get_json()
+
+    geography_id = data.get('geography_id')
+    selected_answer = data.get('selected_answer')
+    correct_answer = data.get('correct_answer')
+
+    # Determine if answer is correct
+    is_correct = selected_answer == correct_answer
+
+    # Update geography statistics
+    update_geography_stats(geography_id, is_correct)
+
+    return jsonify({
+        'success': True,
+        'is_correct': is_correct
+    })
+
+
+@app.route('/geographyDebug')
+def geography_debug():
+    """Debug page to test state highlighting."""
+    # Get state number from query parameter
+    state_id = request.args.get('id', type=int)
+
+    if state_id is None:
+        return "Please provide a state ID: /geographyDebug?id=1", 400
+
+    # Get state info from database
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM geography_questions WHERE state_number = ?', (state_id,))
+    state_info = cursor.fetchone()
+    conn.close()
+
+    if not state_info:
+        return f"State number {state_id} not found in database", 404
+
+    return render_template(
+        'geography_debug.html',
+        state_number=state_id,
+        state_name=state_info['state_name']
+    )
+
+
 # --- Main execution block ---
 if __name__ == '__main__':
     # Runs the Flask app. 'debug=True' means the server will auto-reload
