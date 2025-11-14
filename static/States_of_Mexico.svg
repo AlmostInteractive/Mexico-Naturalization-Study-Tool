@@ -2,9 +2,7 @@
 <svg:svg xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
          xmlns:ns4="http://web.resource.org/cc/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
          xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:svg="http://www.w3.org/2000/svg"
-         id="svg3919" sodipodi:version="0.32" inkscape:version="0.44" width="999.73236" height="679.94141" version="1.0"
-         sodipodi:docbase="C:\Documents and Settings\Fam. Ventocilla\Mis documentos\{70443084}"
-         sodipodi:docname="Mexican-States.svg">
+         id="svg3919" sodipodi:version="0.32" inkscape:version="0.44" width="999.73236" height="679.94141" version="1.0">
     <svg:metadata id="metadata3924">
         <rdf:RDF>
             <ns4:Work rdf:about="">
@@ -293,15 +291,5 @@
                   d="M 585.96718,523.97782 C 583.13776,523.53661 582.3842,522.88646 581.72028,520.31374 C 581.01472,517.57967 581.34937,516.7098 584.37931,513.40187 C 587.49023,510.00554 587.91545,509.81365 588.52821,511.52956 C 588.90371,512.58109 589.80926,514.14271 590.54054,514.99984 C 591.27182,515.85696 592.07699,518.17389 592.32981,520.14856 C 592.85147,524.22302 591.75837,524.88089 585.96718,523.97782 z "
                   fill="white" stroke="black" stroke-width="2" stroke-opacity="1" fill-opacity="1"
                   data-state-number="32" data-state-name="Mexico-City"/>
-    </svg:g>
-    <svg:g id="g3014" style="stroke:none">
-        <svg:g style="fill:#00c100;fill-opacity:1;stroke:none;stroke-width:2;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-               id="g7445">
-        </svg:g>
-        <svg:g style="fill:#00c100;fill-opacity:1;stroke:none;stroke-opacity:1;stroke-linejoin:miter;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
-               id="g7428">
-        </svg:g>
-    </svg:g>
-    <svg:g id="g2924" transform="translate(1.401237,-1.999907)" style="font-size:20px;fill:black">
     </svg:g>
 </svg:svg>
