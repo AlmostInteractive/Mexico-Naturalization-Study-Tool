@@ -580,19 +580,12 @@ def calculate_geography_weight(geography_id, times_answered, times_correct, curs
     return max(1.0, weight)
 
 
-def increment_mastered_geography_weights(cursor, increment=WEIGHT_INCREMENT):
-    """Increment weights for mastered geography questions only."""
-    cursor.execute('SELECT id FROM geography_questions')
-    all_geographies = cursor.fetchall()
-
-    for geo_row in all_geographies:
-        geography_id = geo_row['id']
-        if is_geography_mastered(geography_id, cursor):
-            cursor.execute('''
-                UPDATE geography_stats
-                SET weight = weight + ?
-                WHERE geography_id = ?
-            ''', (increment, geography_id))
+def increment_geography_weights(cursor, increment=WEIGHT_INCREMENT):
+    cursor.execute('''
+        UPDATE geography_stats
+        SET weight = weight + ?
+        WHERE 1
+    ''', (increment,))
 
 
 def update_geography_stats(geography_id, is_correct):
@@ -601,7 +594,7 @@ def update_geography_stats(geography_id, is_correct):
     cursor = conn.cursor()
 
     # First increment weights for mastered geography questions only
-    increment_mastered_geography_weights(cursor)
+    increment_geography_weights(cursor)
 
     # Record the individual attempt
     cursor.execute('''
@@ -630,7 +623,7 @@ def update_geography_stats(geography_id, is_correct):
         else:
             cursor.execute('SELECT weight FROM geography_stats WHERE geography_id = ?', (geography_id,))
             current_weight = cursor.fetchone()['weight']
-            weight = current_weight
+            weight = current_weight + WEIGHT_INCREMENT # effectively increments the weight twice
     else:
         # Unmastered: use rolling success rate based weight
         weight = calculate_geography_weight(geography_id, times_answered, times_correct, cursor)
