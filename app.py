@@ -554,6 +554,10 @@ def is_geography_mastered(geography_id, cursor):
 
 def calculate_geography_weight(geography_id, times_answered, times_correct, cursor):
     """Calculate weight for a geography question based on rolling success rate."""
+    if times_answered == 0:
+        # Never answered: give higher priority to ensure new questions get asked
+        return 3.0
+
     if times_answered < 3:
         # Not enough attempts yet, use default weight
         return 1.0
@@ -581,10 +585,10 @@ def calculate_geography_weight(geography_id, times_answered, times_correct, curs
 
 
 def increment_geography_weights(cursor, increment=WEIGHT_INCREMENT):
+    """Increment weights for all geography questions to create aging effect."""
     cursor.execute('''
         UPDATE geography_stats
         SET weight = weight + ?
-        WHERE 1
     ''', (increment,))
 
 
@@ -593,7 +597,7 @@ def update_geography_stats(geography_id, is_correct):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # First increment weights for mastered geography questions only
+    # First increment weights for all geography questions
     increment_geography_weights(cursor)
 
     # Record the individual attempt

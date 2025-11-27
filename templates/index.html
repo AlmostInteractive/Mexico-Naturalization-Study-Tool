@@ -181,6 +181,9 @@
             <button id="replay-speech" style="background: none; border: 2px solid #005a31; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px;" title="Repetir pregunta">
                 🔊
             </button>
+            <button id="translate-btn" style="background: none; border: 2px solid #005a31; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px;" title="Traducir en Google">
+                🌐
+            </button>
         </div>
 
         <div class="options">
@@ -347,6 +350,15 @@
 
             // Replay speech functionality
             replayButton.addEventListener('click', speakQuestion);
+
+            // Translate button functionality
+            const translateButton = document.getElementById('translate-btn');
+            translateButton.addEventListener('click', () => {
+                const questionText = document.getElementById('question').textContent;
+                const encodedText = encodeURIComponent(questionText);
+                const translateUrl = `https://translate.google.com/?sl=es&tl=en&text=${encodedText}&op=translate`;
+                window.open(translateUrl, '_blank');
+            });
 
             // Geography link - stop speech before navigating
             geographyLink.addEventListener('click', () => {
