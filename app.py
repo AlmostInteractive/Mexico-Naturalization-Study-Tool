@@ -1,12 +1,14 @@
 import sqlite3
 import random
 from flask import Flask, render_template, request, jsonify
-from weight_calculator import calculate_weight, RECENT_ATTEMPTS_WINDOW, get_rolling_success_rate
+from weight_calculator import RECENT_ATTEMPTS_WINDOW, get_rolling_success_rate
 
 # Initialize the Flask application
 app = Flask(__name__)
+app.config['JSON_AS_ASCII'] = False  # Preserve unicode characters in JSON responses
 
 WEIGHT_INCREMENT = 0.1
+INITIAL_WEIGHT = 5.0
 
 
 # --- Database Functions ---
@@ -35,39 +37,16 @@ def is_question_mastered(question_id, cursor):
     return attempts >= 3 and rolling_success_rate >= 0.8
 
 
-def increment_mastered_weights(cursor, increment=WEIGHT_INCREMENT):
-    """Increment weights for mastered questions only."""
-    # Get current max unlocked chunk
-    cursor.execute('SELECT max_unlocked_chunk FROM user_progress WHERE id = 1')
-    result = cursor.fetchone()
-    max_chunk = result['max_unlocked_chunk'] if result else 1
-
-    # Get all questions in unlocked chunks
-    cursor.execute('''
-        SELECT q.id FROM questions q
-        WHERE q.chunk_number <= ?
-    ''', (max_chunk,))
-
-    all_questions = cursor.fetchall()
-
-    # Increment weights only for mastered questions
-    for question_row in all_questions:
-        question_id = question_row['id']
-        if is_question_mastered(question_id, cursor):
-            cursor.execute('''
-                UPDATE question_stats
-                SET weight = weight + ?
-                WHERE question_id = ?
-            ''', (increment, question_id))
-
-
 def update_question_stats(question_id, is_correct):
-    """Update statistics for a question after it's been answered."""
+    """
+    Update statistics for a question after it's been answered.
+
+    Simplified linear weight system:
+    - Correct answer: reset this question to 1.0, increment all others in same category by 0.1
+    - Incorrect answer: keep current weight (accumulates through other questions)
+    """
     conn = get_db_connection()
     cursor = conn.cursor()
-
-    # First increment weights for mastered questions only
-    increment_mastered_weights(cursor)
 
     # Record the individual attempt
     cursor.execute('''
@@ -88,26 +67,41 @@ def update_question_stats(question_id, is_correct):
     # Calculate lifetime success rate (for display purposes)
     lifetime_success_rate = times_correct / times_answered
 
-    # Calculate weight based on mastery status
-    if is_question_mastered(question_id, cursor):
-        # Mastered question: reset to 1 if answered correctly, keep current if wrong
-        if is_correct:
-            weight = 1.0
-        else:
-            # Keep current weight (don't reset on wrong answer for mastered questions)
-            cursor.execute('SELECT weight FROM question_stats WHERE question_id = ?', (question_id,))
-            current_weight = cursor.fetchone()['weight']
-            weight = current_weight
-    else:
-        # Unmastered question: use rolling success rate based weight
-        weight = calculate_weight(question_id, times_answered, times_correct, cursor)
+    # Get current max unlocked chunk for category filtering
+    cursor.execute('SELECT max_unlocked_chunk FROM user_progress WHERE id = 1')
+    progress_result = cursor.fetchone()
+    max_chunk = progress_result['max_unlocked_chunk'] if progress_result else 1
 
-    # Update stats (store lifetime success rate for display, weight calculated by shared library)
+    # Determine if this question is mastered (for category separation and storage)
+    is_mastered = is_question_mastered(question_id, cursor)
+    is_mastered_int = 1 if is_mastered else 0
+
+    if is_correct:
+        # Reset this question's weight to 0.0
+        weight = 0.0
+
+        # Increment all OTHER questions in the same category by 0.1
+        # Category = mastered vs unmastered (using stored is_mastered attribute)
+        cursor.execute('''
+            UPDATE question_stats
+            SET weight = weight + ?
+            WHERE question_id IN (
+                SELECT id FROM questions WHERE chunk_number <= ? AND id != ?
+            )
+            AND is_mastered = ?
+        ''', (WEIGHT_INCREMENT, max_chunk, question_id, is_mastered_int))
+    else:
+        # Keep current weight (it will accumulate as other questions are answered correctly)
+        cursor.execute('SELECT weight FROM question_stats WHERE question_id = ?', (question_id,))
+        current_weight = cursor.fetchone()['weight']
+        weight = current_weight
+
+    # Update stats (store lifetime success rate, weight, and mastery status)
     cursor.execute('''
         UPDATE question_stats
-        SET times_answered = ?, times_correct = ?, success_rate = ?, weight = ?
+        SET times_answered = ?, times_correct = ?, success_rate = ?, weight = ?, is_mastered = ?
         WHERE question_id = ?
-    ''', (times_answered, times_correct, lifetime_success_rate, weight, question_id))
+    ''', (times_answered, times_correct, lifetime_success_rate, weight, is_mastered_int, question_id))
 
     conn.commit()
     conn.close()
@@ -384,7 +378,7 @@ def show_stats():
 
     cursor.execute('''
         SELECT q.id, q.question_text, qs.times_answered, qs.times_correct,
-               qs.success_rate, qs.weight
+               qs.success_rate, qs.weight, qs.is_mastered
         FROM questions q
         JOIN question_stats qs ON q.id = qs.question_id
         WHERE qs.times_answered > 0
@@ -418,7 +412,8 @@ def show_stats():
             'times_correct': stat['times_correct'],
             'lifetime_success_rate': f"{stat['success_rate']:.1%}",
             'rolling_success_rate': f"{rolling_success_rate:.1%}",
-            'weight': f"{stat['weight']:.2f}"
+            'weight': f"{stat['weight']:.2f}",
+            'is_mastered': bool(stat['is_mastered'])
         })
 
     conn.close()
@@ -621,9 +616,9 @@ def update_geography_stats(geography_id, is_correct):
 
     # Calculate weight based on mastery status
     if is_geography_mastered(geography_id, cursor):
-        # Mastered: reset to 1 if answered correctly, keep current if wrong
+        # Mastered: reset to 0 if answered correctly, keep current if wrong
         if is_correct:
-            weight = 1.0
+            weight = 0.0
         else:
             cursor.execute('SELECT weight FROM geography_stats WHERE geography_id = ?', (geography_id,))
             current_weight = cursor.fetchone()['weight']

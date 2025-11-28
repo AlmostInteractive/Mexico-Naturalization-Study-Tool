@@ -36,7 +36,8 @@ def initialize_database():
             times_answered INTEGER DEFAULT 0,
             times_correct INTEGER DEFAULT 0,
             success_rate REAL DEFAULT 0.0,
-            weight REAL DEFAULT 25.0,
+            weight REAL DEFAULT 5.0,
+            is_mastered INTEGER DEFAULT 0,
             FOREIGN KEY (question_id) REFERENCES questions (id)
         )
     ''')
@@ -157,8 +158,8 @@ def import_distractors_csv(csv_file: str):
                         # Initialize stats
                         cursor.execute('''
                             INSERT INTO question_stats (
-                                question_id, times_answered, times_correct, success_rate, weight
-                            ) VALUES (?, 0, 0, 0.0, 25.0)
+                                question_id, times_answered, times_correct, success_rate, weight, is_mastered
+                            ) VALUES (?, 0, 0, 0.0, 5.0, 0)
                         ''', (question_id,))
 
                         questions_imported += 1
