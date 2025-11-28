@@ -8,7 +8,6 @@ app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False  # Preserve unicode characters in JSON responses
 
 WEIGHT_INCREMENT = 0.1
-INITIAL_WEIGHT = 5.0
 
 
 # --- Database Functions ---
@@ -42,7 +41,7 @@ def update_question_stats(question_id, is_correct):
     Update statistics for a question after it's been answered.
 
     Simplified linear weight system:
-    - Correct answer: reset this question to 1.0, increment all others in same category by 0.1
+    - Correct answer: reset this question to 0.0, increment all others in same category by 0.1
     - Incorrect answer: keep current weight (accumulates through other questions)
     """
     conn = get_db_connection()
@@ -526,74 +525,42 @@ def show_progress():
 
 
 # --- Geography Quiz Functions ---
+def get_rolling_success_rate_geography(geography_id, cursor, window_size=RECENT_ATTEMPTS_WINDOW):
+    """Calculate success rate based on the last N attempts for geography questions."""
+    cursor.execute('''
+        SELECT is_correct FROM geography_attempts
+        WHERE geography_id = ?
+        ORDER BY attempt_timestamp DESC
+        LIMIT ?
+    ''', (geography_id, window_size))
+
+    recent_attempts = cursor.fetchall()
+
+    if not recent_attempts:
+        return 0.0, 0
+
+    recent_correct = sum(1 for attempt in recent_attempts if attempt['is_correct'])
+    recent_total = len(recent_attempts)
+
+    return recent_correct / recent_total, recent_total
+
+
 def is_geography_mastered(geography_id, cursor):
     """Check if a geography question is mastered (80%+ rolling success rate, 3+ attempts)."""
-    # Calculate rolling success rate from recent attempts
-    cursor.execute('''
-        SELECT is_correct FROM geography_attempts
-        WHERE geography_id = ?
-        ORDER BY attempt_timestamp DESC
-        LIMIT ?
-    ''', (geography_id, RECENT_ATTEMPTS_WINDOW))
-
-    recent_attempts = cursor.fetchall()
-    if not recent_attempts:
-        return False
-
-    recent_correct = sum(1 for attempt in recent_attempts if attempt['is_correct'])
-    recent_total = len(recent_attempts)
-    rolling_success_rate = recent_correct / recent_total
-
-    return recent_total >= 3 and rolling_success_rate >= 0.8
-
-
-def calculate_geography_weight(geography_id, times_answered, times_correct, cursor):
-    """Calculate weight for a geography question based on rolling success rate."""
-    if times_answered == 0:
-        # Never answered: give higher priority to ensure new questions get asked
-        return 3.0
-
-    if times_answered < 3:
-        # Not enough attempts yet, use default weight
-        return 1.0
-
-    # Get rolling success rate
-    cursor.execute('''
-        SELECT is_correct FROM geography_attempts
-        WHERE geography_id = ?
-        ORDER BY attempt_timestamp DESC
-        LIMIT ?
-    ''', (geography_id, RECENT_ATTEMPTS_WINDOW))
-
-    recent_attempts = cursor.fetchall()
-    if not recent_attempts:
-        return 1.0
-
-    recent_correct = sum(1 for attempt in recent_attempts if attempt['is_correct'])
-    recent_total = len(recent_attempts)
-    rolling_success_rate = recent_correct / recent_total
-
-    # Weight calculation: lower success rate = higher weight
-    # 0% success = 5.0 weight, 50% success = 3.0 weight, 100% success = 1.0 weight
-    weight = 1.0 + (4.0 * (1.0 - rolling_success_rate))
-    return max(1.0, weight)
-
-
-def increment_geography_weights(cursor, increment=WEIGHT_INCREMENT):
-    """Increment weights for all geography questions to create aging effect."""
-    cursor.execute('''
-        UPDATE geography_stats
-        SET weight = weight + ?
-    ''', (increment,))
+    rolling_success_rate, attempts = get_rolling_success_rate_geography(geography_id, cursor)
+    return attempts >= 3 and rolling_success_rate >= 0.8
 
 
 def update_geography_stats(geography_id, is_correct):
-    """Update statistics for a geography question after it's been answered."""
+    """
+    Update statistics for a geography question after it's been answered.
+
+    Simplified linear weight system:
+    - Correct answer: reset this question to 0.0, increment all others in same category by 0.1
+    - Incorrect answer: keep current weight (accumulates through other questions)
+    """
     conn = get_db_connection()
     cursor = conn.cursor()
-
-    # First increment weights for all geography questions
-    increment_geography_weights(cursor)
 
     # Record the individual attempt
     cursor.execute('''
@@ -601,7 +568,7 @@ def update_geography_stats(geography_id, is_correct):
         VALUES (?, ?)
     ''', (geography_id, is_correct))
 
-    # Get current stats
+    # Get current stats (for total tracking)
     cursor.execute('''
         SELECT times_answered, times_correct FROM geography_stats
         WHERE geography_id = ?
@@ -611,28 +578,39 @@ def update_geography_stats(geography_id, is_correct):
     times_answered = result['times_answered'] + 1
     times_correct = result['times_correct'] + (1 if is_correct else 0)
 
-    # Calculate success rate
-    success_rate = times_correct / times_answered
+    # Calculate lifetime success rate (for display purposes)
+    lifetime_success_rate = times_correct / times_answered
 
-    # Calculate weight based on mastery status
-    if is_geography_mastered(geography_id, cursor):
-        # Mastered: reset to 0 if answered correctly, keep current if wrong
-        if is_correct:
-            weight = 0.0
-        else:
-            cursor.execute('SELECT weight FROM geography_stats WHERE geography_id = ?', (geography_id,))
-            current_weight = cursor.fetchone()['weight']
-            weight = current_weight + WEIGHT_INCREMENT # effectively increments the weight twice
+    # Determine if this question is mastered (for category separation)
+    is_mastered = is_geography_mastered(geography_id, cursor)
+    is_mastered_int = 1 if is_mastered else 0
+
+    if is_correct:
+        # Reset this question's weight to 0.0
+        weight = 0.0
+
+        # Increment all OTHER questions in the same category by 0.1
+        # Category = mastered vs unmastered
+        cursor.execute('''
+            UPDATE geography_stats
+            SET weight = weight + ?
+            WHERE geography_id IN (
+                SELECT id FROM geography_questions WHERE id != ?
+            )
+            AND is_mastered = ?
+        ''', (WEIGHT_INCREMENT, geography_id, is_mastered_int))
     else:
-        # Unmastered: use rolling success rate based weight
-        weight = calculate_geography_weight(geography_id, times_answered, times_correct, cursor)
+        # Keep current weight (it will accumulate as other questions are answered correctly)
+        cursor.execute('SELECT weight FROM geography_stats WHERE geography_id = ?', (geography_id,))
+        current_weight = cursor.fetchone()['weight']
+        weight = current_weight
 
-    # Update stats
+    # Update stats (store lifetime success rate, weight, and mastery status)
     cursor.execute('''
         UPDATE geography_stats
-        SET times_answered = ?, times_correct = ?, success_rate = ?, weight = ?
+        SET times_answered = ?, times_correct = ?, success_rate = ?, weight = ?, is_mastered = ?
         WHERE geography_id = ?
-    ''', (times_answered, times_correct, success_rate, weight, geography_id))
+    ''', (times_answered, times_correct, lifetime_success_rate, weight, is_mastered_int, geography_id))
 
     conn.commit()
     conn.close()
@@ -820,7 +798,7 @@ def show_geography_stats():
 
     cursor.execute('''
         SELECT g.id, g.state_name, g.state_number, gs.times_answered, gs.times_correct,
-               gs.success_rate, gs.weight
+               gs.success_rate, gs.weight, gs.is_mastered
         FROM geography_questions g
         JOIN geography_stats gs ON g.id = gs.geography_id
         ORDER BY gs.weight DESC, g.state_number ASC
@@ -853,7 +831,8 @@ def show_geography_stats():
             'times_correct': stat['times_correct'],
             'lifetime_success_rate': f"{stat['success_rate']:.1%}",
             'rolling_success_rate': f"{rolling_success_rate:.1%}",
-            'weight': f"{stat['weight']:.2f}"
+            'weight': f"{stat['weight']:.2f}",
+            'is_mastered': bool(stat['is_mastered'])
         })
 
     conn.close()
