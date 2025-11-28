@@ -866,6 +866,55 @@ def show_geography_stats():
     return jsonify(stats_list)
 
 
+# --- Synopsis Routes ---
+@app.route('/synopsis')
+def synopsis():
+    """Display the main synopsis introduction page."""
+    return render_template('synopsis.html')
+
+
+@app.route('/synopsis1')
+def synopsis1():
+    """Display the Ancient Mexico synopsis page."""
+    return render_template('synopsis1.html')
+
+
+@app.route('/synopsis2')
+def synopsis2():
+    """Display the Colonial Era to 1760 synopsis page."""
+    return render_template('synopsis2.html')
+
+
+@app.route('/synopsis3')
+def synopsis3():
+    """Display the Bourbon Reforms and Independence synopsis page."""
+    return render_template('synopsis3.html')
+
+
+@app.route('/synopsis4')
+def synopsis4():
+    """Display the Independence to Consolidation synopsis page."""
+    return render_template('synopsis4.html')
+
+
+@app.route('/synopsis5')
+def synopsis5():
+    """Display the Porfiriato synopsis page."""
+    return render_template('synopsis5.html')
+
+
+@app.route('/synopsis6')
+def synopsis6():
+    """Display the Revolution synopsis page."""
+    return render_template('synopsis6.html')
+
+
+@app.route('/synopsis7')
+def synopsis7():
+    """Display the Last Stretch synopsis page."""
+    return render_template('synopsis7.html')
+
+
 # --- Main execution block ---
 if __name__ == '__main__':
     # Runs the Flask app. 'debug=True' means the server will auto-reload

@@ -93,16 +93,44 @@
             position: fixed;
             top: 0;
             left: 0;
+            right: 0;
             background-color: #005a31;
             color: white;
             padding: 10px 20px;
             display: flex;
-            justify-content: flex-start;
+            justify-content: space-between;
             align-items: center;
-            gap: 20px;
             font-size: 0.9em;
             z-index: 1000;
-            border-radius: 0 0 8px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .menu-left {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .menu-nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .menu-nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .menu-nav-link.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            font-weight: bold;
+        }
+        .menu-separator {
+            color: rgba(255, 255, 255, 0.5);
+            margin: 0 5px;
+        }
+        .menu-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
         .menu-item {
             display: flex;
@@ -138,22 +166,28 @@
 <body>
     <!-- Menu Bar -->
     <div class="menu-bar">
-        <div class="menu-item">
-            <label for="speech-rate">Velocidad de Audio:</label>
-            <select id="speech-rate">
-                <option value="0.7">Lenta</option>
-                <option value="1.0" selected>Normal</option>
-                <option value="1.2">Rápida</option>
-            </select>
+        <div class="menu-left">
+            <a href="/synopsis" class="menu-nav-link">📖 Sinopsis</a>
+            <span class="menu-separator">|</span>
+            <a href="/" class="menu-nav-link active">📝 Preguntas</a>
+            <span class="menu-separator">|</span>
+            <a href="/geography" class="menu-nav-link">🗺️ Geografía</a>
         </div>
-        <div class="menu-item">
-            <button id="menu-speech-toggle" class="menu-toggle">🔊 Audio: ON</button>
-        </div>
-        <div class="menu-item">
-            <button id="delete-question-btn" class="menu-toggle" style="background-color: #dc3545; border-color: #dc3545;" title="Eliminar esta pregunta de la base de datos">🗑️ Eliminar</button>
-        </div>
-        <div class="menu-item">
-            <a href="/geography" id="geography-link" style="color: white; text-decoration: none; border: 2px solid white; padding: 4px 12px; border-radius: 4px;">🗺️ Geografía</a>
+        <div class="menu-right">
+            <div class="menu-item">
+                <label for="speech-rate">Velocidad de Audio:</label>
+                <select id="speech-rate">
+                    <option value="0.7">Lenta</option>
+                    <option value="1.0" selected>Normal</option>
+                    <option value="1.2">Rápida</option>
+                </select>
+            </div>
+            <div class="menu-item">
+                <button id="menu-speech-toggle" class="menu-toggle">🔊 Audio: ON</button>
+            </div>
+            <div class="menu-item">
+                <button id="delete-question-btn" class="menu-toggle" style="background-color: #dc3545; border-color: #dc3545;" title="Eliminar esta pregunta de la base de datos">🗑️ Eliminar</button>
+            </div>
         </div>
     </div>
 
@@ -360,9 +394,11 @@
                 window.open(translateUrl, '_blank');
             });
 
-            // Geography link - stop speech before navigating
-            geographyLink.addEventListener('click', () => {
-                speechSynthesis.cancel();
+            // Navigation links - stop speech before navigating
+            document.querySelectorAll('.menu-nav-link').forEach(link => {
+                link.addEventListener('click', () => {
+                    speechSynthesis.cancel();
+                });
             });
 
             // Next button functionality

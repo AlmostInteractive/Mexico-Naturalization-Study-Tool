@@ -168,34 +168,51 @@
             position: fixed;
             top: 0;
             left: 0;
+            right: 0;
             background-color: #005a31;
             color: white;
             padding: 10px 20px;
             display: flex;
-            justify-content: flex-start;
+            justify-content: space-between;
             align-items: center;
-            gap: 20px;
             font-size: 0.9em;
             z-index: 1000;
-            border-radius: 0 0 8px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .menu-item a {
+        .menu-left {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .menu-nav-link {
             color: white;
             text-decoration: none;
-            border: 2px solid white;
-            padding: 4px 12px;
+            padding: 6px 12px;
             border-radius: 4px;
+            transition: background-color 0.2s;
         }
-        .menu-item a:hover {
+        .menu-nav-link:hover {
             background-color: rgba(255, 255, 255, 0.1);
+        }
+        .menu-nav-link.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            font-weight: bold;
+        }
+        .menu-separator {
+            color: rgba(255, 255, 255, 0.5);
+            margin: 0 5px;
         }
     </style>
 </head>
 <body>
     <!-- Menu Bar -->
     <div class="menu-bar">
-        <div class="menu-item">
-            <a href="/">← Volver a Preguntas de Texto</a>
+        <div class="menu-left">
+            <a href="/synopsis" class="menu-nav-link">📖 Sinopsis</a>
+            <span class="menu-separator">|</span>
+            <a href="/" class="menu-nav-link">📝 Preguntas</a>
+            <span class="menu-separator">|</span>
+            <a href="/geography" class="menu-nav-link active">🗺️ Geografía</a>
         </div>
     </div>
 
