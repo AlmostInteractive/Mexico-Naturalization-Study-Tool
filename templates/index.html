@@ -242,92 +242,11 @@
         <a href="#" id="next-btn" class="next-btn">Siguiente Pregunta</a>
     </div>
 
+    <!-- Shared speech functionality -->
+    <script src="/static/speech.js"></script>
+
     <script>
-        // Text-to-Speech functionality
-        let speechEnabled = localStorage.getItem('speechEnabled') !== 'false'; // Default to enabled
-        let speechRate = parseFloat(localStorage.getItem('speechRate')) || 1.0; // Default to normal speed
-        let currentUtterance = null;
-
-        function updateSpeechToggleButton() {
-            const menuToggleButton = document.getElementById('menu-speech-toggle');
-            menuToggleButton.textContent = speechEnabled ? '🔊 Audio: ON' : '🔇 Audio: OFF';
-        }
-
-        function updateSpeechRate() {
-            const rateSelect = document.getElementById('speech-rate');
-            // Ensure the rate is one of our valid options
-            if (![0.7, 1.0, 1.2].includes(speechRate)) {
-                speechRate = 1.0; // Default to normal if invalid
-                localStorage.setItem('speechRate', speechRate);
-            }
-            rateSelect.value = speechRate.toString();
-        }
-
-        function speakText(text, onComplete = null) {
-            if (!speechEnabled || !('speechSynthesis' in window)) {
-                if (onComplete) onComplete();
-                return;
-            }
-
-            // Stop any current speech
-            speechSynthesis.cancel();
-
-            currentUtterance = new SpeechSynthesisUtterance(text);
-
-            // Add completion callback
-            if (onComplete) {
-                currentUtterance.onend = onComplete;
-                currentUtterance.onerror = onComplete; // Also advance on error
-            }
-
-            // Try to find a Spanish voice in preferred order
-            const voices = speechSynthesis.getVoices();
-
-            // Priority order: es-MX, es-US, then any Spanish voice
-            let spanishVoice = voices.find(voice => voice.lang === 'es-MX');
-            if (!spanishVoice) {
-                spanishVoice = voices.find(voice => voice.lang === 'es-US');
-            }
-            if (!spanishVoice) {
-                spanishVoice = voices.find(voice =>
-                    voice.lang.startsWith('es') ||
-                    voice.name.toLowerCase().includes('spanish') ||
-                    voice.name.toLowerCase().includes('español')
-                );
-            }
-
-            if (spanishVoice) {
-                currentUtterance.voice = spanishVoice;
-                currentUtterance.lang = spanishVoice.lang;
-            } else {
-                // Fallback to language codes if no Spanish voice found
-                currentUtterance.lang = 'es-MX'; // Try Mexican Spanish first
-            }
-
-            currentUtterance.rate = speechRate; // Use selected speech rate
-            currentUtterance.pitch = 1.0;
-
-            speechSynthesis.speak(currentUtterance);
-        }
-
-        // Load voices when they become available
-        function loadVoices() {
-            const voices = speechSynthesis.getVoices();
-
-            // Debug: Log available Spanish voices
-            const spanishVoices = voices.filter(voice =>
-                voice.lang.startsWith('es') ||
-                voice.name.toLowerCase().includes('spanish') ||
-                voice.name.toLowerCase().includes('español')
-            );
-
-            if (spanishVoices.length > 0) {
-                console.log('Available Spanish voices:', spanishVoices.map(v => `${v.name} (${v.lang})`));
-            } else {
-                console.log('No Spanish voices found. Available voices:', voices.map(v => `${v.name} (${v.lang})`));
-            }
-        }
-
+        // Page-specific speech functions
         function speakQuestion() {
             const questionText = document.getElementById('question').textContent;
             speakText(questionText);
@@ -358,31 +277,6 @@
             const replayButton = document.getElementById('replay-speech');
             const deleteButton = document.getElementById('delete-question-btn');
             const geographyLink = document.getElementById('geography-link');
-
-            // Initialize menu controls
-            updateSpeechToggleButton();
-            updateSpeechRate();
-
-            // Load voices when available
-            loadVoices();
-            speechSynthesis.addEventListener('voiceschanged', loadVoices);
-
-            // Menu speech toggle functionality
-            menuSpeechToggle.addEventListener('click', () => {
-                speechEnabled = !speechEnabled;
-                localStorage.setItem('speechEnabled', speechEnabled);
-                updateSpeechToggleButton();
-
-                if (!speechEnabled) {
-                    speechSynthesis.cancel(); // Stop any current speech
-                }
-            });
-
-            // Speech rate change functionality
-            speechRateSelect.addEventListener('change', () => {
-                speechRate = parseFloat(speechRateSelect.value);
-                localStorage.setItem('speechRate', speechRate);
-            });
 
             // Replay speech functionality
             replayButton.addEventListener('click', speakQuestion);

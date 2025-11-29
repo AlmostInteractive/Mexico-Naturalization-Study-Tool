@@ -678,6 +678,77 @@ def get_weighted_geography_question(exclude_geography_id=None):
 @app.route('/geography')
 def geography_quiz():
     """Display the geography quiz page."""
+    # Check if this is part 2 (capital question)
+    part = request.args.get('part', type=int, default=1)
+    geography_id_param = request.args.get('geography_id', type=int)
+
+    # If part 2, show capital question
+    if part == 2 and geography_id_param:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get the state info
+        cursor.execute('''
+            SELECT id, state_name, capital
+            FROM geography_questions
+            WHERE id = ?
+        ''', (geography_id_param,))
+        state_data = cursor.fetchone()
+
+        if not state_data:
+            conn.close()
+            return "State not found!", 404
+
+        geography_id = state_data['id']
+        state_name = state_data['state_name']
+        correct_capital = state_data['capital']
+
+        # Get 3 random incorrect capitals as distractors
+        cursor.execute('''
+            SELECT capital FROM geography_questions
+            WHERE id != ?
+            ORDER BY RANDOM()
+            LIMIT 3
+        ''', (geography_id,))
+        distractors = [row['capital'] for row in cursor.fetchall()]
+
+        # Combine correct answer with distractors and shuffle
+        options = distractors + [correct_capital]
+        random.shuffle(options)
+
+        # Get progress stats (same as part 1)
+        cursor.execute('''
+            SELECT COUNT(*) as total,
+                   SUM(CASE WHEN times_answered >= 3 THEN 1 ELSE 0 END) as answered_enough,
+                   COUNT(CASE WHEN times_answered >= 3 THEN 1 END) as answered_count
+            FROM geography_stats
+        ''')
+        stats = cursor.fetchone()
+
+        # Count mastered questions
+        cursor.execute('SELECT id FROM geography_questions')
+        all_geo_ids = cursor.fetchall()
+        mastered_count = sum(1 for geo_row in all_geo_ids if is_geography_mastered(geo_row['id'], cursor))
+
+        conn.close()
+
+        return render_template(
+            'geography.html',
+            part=2,
+            geography_id=geography_id,
+            question_text=f"¿Cuál es la capital de {state_name}?",
+            correct_answer=correct_capital,
+            state_name=state_name,
+            options=options,
+            mode=1,  # Always mode 1 (multiple choice) for capital questions
+            state_number=None,
+            correct_state=None,
+            total_states=stats['total'],
+            answered_count=stats['answered_count'],
+            mastered_count=mastered_count
+        )
+
+    # Part 1: State identification question
     # Get previous question ID to avoid repeating
     prev_geography_id = request.args.get('prev', type=int)
 
@@ -732,11 +803,14 @@ def geography_quiz():
 
     return render_template(
         'geography.html',
+        part=1,
         geography_id=geography_id,
         state_number=state_number,
         correct_state=correct_state,
+        correct_answer=correct_state,
         options=options,
         mode=mode,
+        question_text=None,
         total_states=stats['total'],
         answered_count=stats['answered_count'],
         mastered_count=mastered_count
@@ -751,17 +825,48 @@ def record_geography_answer():
     geography_id = data.get('geography_id')
     selected_answer = data.get('selected_answer')
     correct_answer = data.get('correct_answer')
+    part = data.get('part', 1)
 
     # Determine if answer is correct
     is_correct = selected_answer == correct_answer
 
-    # Update geography statistics
-    update_geography_stats(geography_id, is_correct)
+    if part == 1:
+        # Part 1: State identification
+        if is_correct:
+            # Don't update geography_stats yet - wait for Part 2
+            # Only proceed to Part 2 if Part 1 is correct
+            return jsonify({
+                'success': True,
+                'is_correct': is_correct,
+                'show_capital': True,
+                'geography_id': geography_id
+            })
+        else:
+            # Part 1 incorrect: Mark the entire question as incorrect
+            update_geography_stats(geography_id, False)
 
-    return jsonify({
-        'success': True,
-        'is_correct': is_correct
-    })
+            # Skip Part 2, move to next question
+            return jsonify({
+                'success': True,
+                'is_correct': False,
+                'show_capital': False,
+                'geography_id': geography_id
+            })
+    else:
+        # Part 2: Capital question
+        # Since we only reach Part 2 if Part 1 was correct,
+        # the Part 2 result determines the overall question result
+
+        # Update geography statistics with Part 2 result
+        # (represents combined Part 1 + Part 2 correctness)
+        update_geography_stats(geography_id, is_correct)
+
+        # Always move to next question after part 2
+        return jsonify({
+            'success': True,
+            'is_correct': is_correct,
+            'show_capital': False
+        })
 
 
 @app.route('/geographyDebug')
