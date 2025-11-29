@@ -1,11 +1,13 @@
 import sqlite3
 import random
-from flask import Flask, render_template, request, jsonify
+import secrets
+from flask import Flask, render_template, request, jsonify, session
 from weight_calculator import RECENT_ATTEMPTS_WINDOW, get_rolling_success_rate
 
 # Initialize the Flask application
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False  # Preserve unicode characters in JSON responses
+app.secret_key = secrets.token_hex(32)  # Generate a secure random secret key for sessions
 
 WEIGHT_INCREMENT = 0.1
 
@@ -283,8 +285,8 @@ def quiz():
     """
     This function handles the logic for a single quiz question with weighted selection.
     """
-    # 0. Get previous question ID to avoid repeating
-    prev_question_id = request.args.get('prev', type=int)
+    # 0. Get previous question ID from session to avoid repeating
+    prev_question_id = session.get('prev_question_id')
 
     # Debug logging
     if prev_question_id:
@@ -305,6 +307,9 @@ def quiz():
     question_text = question_data['question_text']
     correct_answer = question_data['correct_answer']
     notes = question_data['notes']
+
+    # Store this question ID in session for next request
+    session['prev_question_id'] = question_id
 
     # Debug logging
     print(f"[DEBUG] Selected question ID: {question_id}")
@@ -703,14 +708,23 @@ def geography_quiz():
         state_name = state_data['state_name']
         correct_capital = state_data['capital']
 
-        # Get 3 random incorrect capitals as distractors
+        # Get 3-4 random incorrect capitals as distractors
+        # (we might need 4 if we replace one with the state name)
         cursor.execute('''
             SELECT capital FROM geography_questions
             WHERE id != ?
             ORDER BY RANDOM()
-            LIMIT 3
+            LIMIT 4
         ''', (geography_id,))
         distractors = [row['capital'] for row in cursor.fetchall()]
+
+        # If the capital doesn't contain the state name, add state name as a distractor
+        if state_name.lower() not in correct_capital.lower():
+            # Replace one of the distractors with the state name
+            distractors = distractors[:2] + [state_name]
+        else:
+            # Use only 3 distractors
+            distractors = distractors[:3]
 
         # Combine correct answer with distractors and shuffle
         options = distractors + [correct_capital]
@@ -749,8 +763,8 @@ def geography_quiz():
         )
 
     # Part 1: State identification question
-    # Get previous question ID to avoid repeating
-    prev_geography_id = request.args.get('prev', type=int)
+    # Get previous question ID from session to avoid repeating
+    prev_geography_id = session.get('prev_geography_id')
 
     # Select a geography question using weighted probability
     geography_data = get_weighted_geography_question(exclude_geography_id=prev_geography_id)
@@ -761,6 +775,9 @@ def geography_quiz():
     geography_id = geography_data['id']
     state_number = geography_data['state_number']
     correct_state = geography_data['state_name']
+
+    # Store this geography ID in session for next request
+    session['prev_geography_id'] = geography_id
 
     # Randomly select mode (1 or 2)
     mode = random.randint(1, 2)

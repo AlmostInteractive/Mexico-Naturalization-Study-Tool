@@ -326,11 +326,7 @@
             const part = parseInt(document.getElementById('part').textContent.trim());
             const nextButton = document.getElementById('next-btn');
 
-            // Next button functionality
-            nextButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                window.location.href = '/geography?prev=' + geographyId;
-            });
+            // Next button href is updated dynamically after answering based on whether to show capital
 
             // Answer selection handling (for both Mode 1 buttons and Part 2 capital buttons)
             if (optionsContainer) {
@@ -395,6 +391,13 @@
                         })
                         .then(response => response.json())
                         .then(data => {
+                            // Update next button href based on whether we should show capital
+                            if (data.show_capital) {
+                                nextButton.href = '/geography?part=2&geography_id=' + geographyId;
+                            } else {
+                                nextButton.href = '/geography';
+                            }
+
                             // Show next button
                             nextButton.style.visibility = 'visible';
 
@@ -403,13 +406,7 @@
                                 speakText(speechText, () => {
                                     // Auto-advance after speech completes
                                     setTimeout(() => {
-                                        if (data.show_capital) {
-                                            // Go to part 2 (capital question)
-                                            window.location.href = '/geography?part=2&geography_id=' + geographyId;
-                                        } else {
-                                            // Move to next question
-                                            window.location.href = '/geography?prev=' + geographyId;
-                                        }
+                                        window.location.href = nextButton.href;
                                     }, 1000); // 1 second delay after speech
                                 });
                             }, 300);
@@ -580,6 +577,13 @@
                                 })
                                 .then(response => response.json())
                                 .then(data => {
+                                    // Update next button href based on whether we should show capital
+                                    if (data.show_capital) {
+                                        nextButton.href = '/geography?part=2&geography_id=' + geographyId;
+                                    } else {
+                                        nextButton.href = '/geography';
+                                    }
+
                                     // Show next button
                                     nextButton.style.visibility = 'visible';
 
@@ -591,13 +595,7 @@
                                         speakText(speechText, () => {
                                             // Auto-advance after speech completes
                                             setTimeout(() => {
-                                                if (data.show_capital) {
-                                                    // Go to part 2 (capital question)
-                                                    window.location.href = '/geography?part=2&geography_id=' + geographyId;
-                                                } else {
-                                                    // Move to next question
-                                                    window.location.href = '/geography?prev=' + geographyId;
-                                                }
+                                                window.location.href = nextButton.href;
                                             }, 1000); // 1 second delay after speech
                                         });
                                     }, 300);
@@ -611,75 +609,6 @@
                     console.error('Error loading SVG:', error);
                     mapPlaceholder.textContent = 'Error al cargar el mapa: ' + error.message;
                 });
-
-            // Next button functionality
-            nextButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                window.location.href = '/geography?prev=' + geographyId;
-            });
-
-            // Answer selection handling
-            optionsContainer.addEventListener('click', async (event) => {
-                if (event.target.classList.contains('option-btn') && !event.target.disabled) {
-                    const selectedOption = event.target;
-                    const allOptions = optionsContainer.querySelectorAll('.option-btn');
-                    const selectedAnswer = selectedOption.textContent;
-
-                    // Disable all buttons
-                    allOptions.forEach(btn => {
-                        btn.disabled = true;
-                    });
-
-                    // Check if answer is correct
-                    const isCorrect = selectedAnswer === correctAnswer;
-
-                    if (isCorrect) {
-                        selectedOption.classList.add('correct');
-                    } else {
-                        selectedOption.classList.add('incorrect');
-                        // Highlight the correct answer
-                        allOptions.forEach(btn => {
-                            if (btn.textContent === correctAnswer) {
-                                btn.classList.add('correct');
-                            }
-                        });
-                    }
-
-                    // Read the correct answer
-                    speakText(correctAnswer);
-
-                    // Send answer to server for tracking
-                    fetch('/geography_answer', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            geography_id: parseInt(geographyId),
-                            selected_answer: selectedAnswer,
-                            correct_answer: correctAnswer,
-                            part: part
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        // Show next button
-                        nextButton.style.visibility = 'visible';
-
-                        // Auto-advance
-                        setTimeout(() => {
-                            if (data.show_capital) {
-                                // Go to part 2 (capital question)
-                                window.location.href = '/geography?part=2&geography_id=' + geographyId;
-                            } else {
-                                // Move to next question
-                                window.location.href = '/geography?prev=' + geographyId;
-                            }
-                        }, isCorrect ? 2000 : 4000);
-                    })
-                    .catch(error => console.error('Error recording answer:', error));
-                }
-            });
         });
     </script>
 </body>
