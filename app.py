@@ -840,6 +840,434 @@ def show_geography_stats():
     return jsonify(stats_list)
 
 
+# --- Multiline Quiz Functions ---
+def calculate_required_correct(total_items):
+    """Calculate how many correct answers are required based on list size."""
+    if total_items <= 5:
+        return total_items  # All items required
+    else:
+        return int(total_items * 0.8 + 0.5)  # 80% rounded up
+
+
+def is_multiline_item_mastered(item_id, cursor):
+    """Check if a multiline item is mastered (80%+ rolling success rate, 3+ attempts)."""
+    cursor.execute('''
+        SELECT is_correct FROM multiline_attempts
+        WHERE item_id = ?
+        ORDER BY attempt_timestamp DESC
+        LIMIT ?
+    ''', (item_id, RECENT_ATTEMPTS_WINDOW))
+
+    recent_attempts = cursor.fetchall()
+
+    if not recent_attempts:
+        return False
+
+    recent_correct = sum(1 for attempt in recent_attempts if attempt['is_correct'])
+    recent_total = len(recent_attempts)
+    rolling_success_rate = recent_correct / recent_total
+
+    return recent_total >= 3 and rolling_success_rate >= 0.8
+
+
+def update_multiline_stats(item_id, is_correct):
+    """
+    Update statistics for a multiline item after it's been answered.
+
+    Simplified linear weight system:
+    - Correct answer: reset this item to 0.0, increment all others in same category by 0.1
+    - Incorrect answer: keep current weight (accumulates through other questions)
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Record the individual attempt
+    cursor.execute('''
+        INSERT INTO multiline_attempts (item_id, is_correct)
+        VALUES (?, ?)
+    ''', (item_id, is_correct))
+
+    # Get current stats
+    cursor.execute('''
+        SELECT times_shown, times_correct FROM multiline_stats
+        WHERE item_id = ?
+    ''', (item_id,))
+
+    result = cursor.fetchone()
+    times_shown = result['times_shown'] + 1
+    times_correct = result['times_correct'] + (1 if is_correct else 0)
+
+    # Calculate lifetime success rate
+    lifetime_success_rate = times_correct / times_shown
+
+    # Determine if this item is mastered (for category separation)
+    is_mastered = is_multiline_item_mastered(item_id, cursor)
+    is_mastered_int = 1 if is_mastered else 0
+
+    # Get the question_id for this item (for category filtering)
+    cursor.execute('''
+        SELECT question_id FROM multiline_items WHERE id = ?
+    ''', (item_id,))
+    question_id = cursor.fetchone()['question_id']
+
+    if is_correct:
+        # Reset this item's weight to 0.0
+        weight = 0.0
+
+        # Increment all OTHER items in the same category by 0.1
+        # Category = same question + same mastery status
+        cursor.execute('''
+            UPDATE multiline_stats
+            SET weight = weight + ?
+            WHERE item_id IN (
+                SELECT id FROM multiline_items WHERE question_id = ? AND id != ?
+            )
+            AND is_mastered = ?
+        ''', (WEIGHT_INCREMENT, question_id, item_id, is_mastered_int))
+    else:
+        # Keep current weight (it will accumulate as other items are answered correctly)
+        cursor.execute('SELECT weight FROM multiline_stats WHERE item_id = ?', (item_id,))
+        current_weight = cursor.fetchone()['weight']
+        weight = current_weight
+
+    # Update stats
+    cursor.execute('''
+        UPDATE multiline_stats
+        SET times_shown = ?, times_correct = ?, success_rate = ?, weight = ?, is_mastered = ?
+        WHERE item_id = ?
+    ''', (times_shown, times_correct, lifetime_success_rate, weight, is_mastered_int, item_id))
+
+    conn.commit()
+    conn.close()
+
+
+def get_weighted_multiline_question(exclude_question_id=None):
+    """Select a multiline question using 70/30 strategy: 70% unmastered, 30% mastered."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get all multiline questions with their average weight and mastery status
+    cursor.execute('''
+        SELECT
+            mq.id,
+            mq.question_text,
+            mq.category,
+            mq.total_items,
+            mq.required_correct,
+            AVG(ms.weight) as avg_weight,
+            AVG(ms.is_mastered) as mastery_ratio
+        FROM multiline_questions mq
+        JOIN multiline_items mi ON mq.id = mi.question_id
+        JOIN multiline_stats ms ON mi.id = ms.item_id
+        GROUP BY mq.id
+    ''')
+
+    questions = cursor.fetchall()
+
+    # Filter out the excluded question if specified
+    if exclude_question_id is not None:
+        questions = [q for q in questions if q['id'] != exclude_question_id]
+
+    if not questions:
+        conn.close()
+        return None
+
+    # Separate into mastered and unmastered based on mastery ratio
+    # A question is considered "mastered" if >80% of its items are mastered
+    unmastered = [q for q in questions if q['mastery_ratio'] < 0.8]
+    mastered = [q for q in questions if q['mastery_ratio'] >= 0.8]
+
+    # 70/30 selection strategy
+    if random.random() < 0.7:
+        # 70% chance: Select from unmastered questions
+        if unmastered:
+            weights = [q['avg_weight'] for q in unmastered]
+            selected = random.choices(unmastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+        # Fallback to mastered if no unmastered questions
+        if mastered:
+            weights = [q['avg_weight'] for q in mastered]
+            selected = random.choices(mastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+    else:
+        # 30% chance: Select from mastered questions
+        if mastered:
+            weights = [q['avg_weight'] for q in mastered]
+            selected = random.choices(mastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+        # Fallback to unmastered if no mastered questions
+        if unmastered:
+            weights = [q['avg_weight'] for q in unmastered]
+            selected = random.choices(unmastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+
+    conn.close()
+    return None
+
+
+# --- Multiline Routes ---
+@app.route('/multiline')
+def multiline_quiz():
+    """Display the progressive multiline question quiz."""
+    # Get session_id from query parameter
+    session_id = request.args.get('session', type=int)
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # If we have a session, load it
+    if session_id:
+        cursor.execute('''
+            SELECT question_id, items_answered, consecutive_correct, completed
+            FROM multiline_sessions
+            WHERE id = ?
+        ''', (session_id,))
+        session = cursor.fetchone()
+
+        if session and not session['completed']:
+            question_id = session['question_id']
+            items_answered = session['items_answered'].split(',') if session['items_answered'] else []
+            consecutive_correct = session['consecutive_correct']
+        else:
+            # Session completed or not found, start a new question
+            session_id = None
+    else:
+        session_id = None
+
+    # If no valid session, start a new question
+    if not session_id:
+        # Select a question
+        question_data = get_weighted_multiline_question()
+        if not question_data:
+            conn.close()
+            return "No multiline questions available!", 500
+
+        question_id = question_data['id']
+        items_answered = []
+        consecutive_correct = 0
+
+        # Create a new session
+        cursor.execute('''
+            INSERT INTO multiline_sessions (question_id, items_answered, consecutive_correct, completed)
+            VALUES (?, '', 0, 0)
+        ''', (question_id,))
+        session_id = cursor.lastrowid
+        conn.commit()
+
+    # Get question details
+    cursor.execute('''
+        SELECT question_text, category, total_items, required_correct
+        FROM multiline_questions
+        WHERE id = ?
+    ''', (question_id,))
+    question = cursor.fetchone()
+
+    # Get all items for this question
+    cursor.execute('''
+        SELECT mi.id, mi.item_text, ms.weight
+        FROM multiline_items mi
+        JOIN multiline_stats ms ON mi.id = ms.item_id
+        WHERE mi.question_id = ?
+    ''', (question_id,))
+    all_items = cursor.fetchall()
+
+    # Filter out already-answered items
+    items_answered_ids = [int(x) for x in items_answered if x]
+    available_items = [item for item in all_items if item['id'] not in items_answered_ids]
+
+    if not available_items:
+        # All items answered, mark session as complete
+        cursor.execute('''
+            UPDATE multiline_sessions
+            SET session_end = CURRENT_TIMESTAMP, completed = 1
+            WHERE id = ?
+        ''', (session_id,))
+        conn.commit()
+        conn.close()
+        return "Question complete! All items answered.", 200
+
+    # Select one correct answer from available items (weighted selection)
+    weights = [item['weight'] for item in available_items]
+    correct_item = random.choices(available_items, weights=weights, k=1)[0]
+
+    # Select 3 random distractors from OTHER questions in the same category
+    cursor.execute('''
+        SELECT mi.item_text
+        FROM multiline_items mi
+        JOIN multiline_questions mq ON mi.question_id = mq.id
+        WHERE mq.category = ? AND mi.question_id != ? AND mi.id NOT IN (''' + ','.join(['?'] * len(items_answered_ids)) + ''')
+        ORDER BY RANDOM()
+        LIMIT 3
+    ''', [question['category'], question_id] + items_answered_ids)
+    distractors = [row['item_text'] for row in cursor.fetchall()]
+
+    # If we don't have enough distractors, pad with generic ones
+    while len(distractors) < 3:
+        distractors.append("Ninguna de las anteriores")
+
+    # Combine and shuffle
+    options = distractors + [correct_item['item_text']]
+    random.shuffle(options)
+
+    conn.close()
+
+    return render_template(
+        'multiline.html',
+        session_id=session_id,
+        question_text=question['question_text'],
+        category=question['category'],
+        options=options,
+        correct_answer=correct_item['item_text'],
+        correct_item_id=correct_item['id'],
+        consecutive_correct=consecutive_correct,
+        required_correct=question['required_correct'],
+        total_items=question['total_items'],
+        items_answered=len(items_answered_ids)
+    )
+
+
+@app.route('/multiline_answer', methods=['POST'])
+def record_multiline_answer():
+    """Record the user's answer to a multiline question and update session."""
+    data = request.get_json()
+
+    session_id = data.get('session_id')
+    item_id = data.get('item_id')
+    selected_answer = data.get('selected_answer')
+    correct_answer = data.get('correct_answer')
+
+    # Determine if answer is correct
+    is_correct = selected_answer == correct_answer
+
+    # Update item statistics
+    update_multiline_stats(item_id, is_correct)
+
+    # Update session
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT question_id, items_answered, consecutive_correct, completed
+        FROM multiline_sessions
+        WHERE id = ?
+    ''', (session_id,))
+    session = cursor.fetchone()
+
+    if not session:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Session not found'}), 404
+
+    question_id = session['question_id']
+    items_answered = session['items_answered'].split(',') if session['items_answered'] else []
+    consecutive_correct = session['consecutive_correct']
+
+    # Add this item to answered list
+    items_answered.append(str(item_id))
+    items_answered_str = ','.join(items_answered)
+
+    # Get required correct count
+    cursor.execute('SELECT required_correct FROM multiline_questions WHERE id = ?', (question_id,))
+    required_correct = cursor.fetchone()['required_correct']
+
+    # Update consecutive correct count
+    if is_correct:
+        consecutive_correct += 1
+    else:
+        # Wrong answer, mark session as complete
+        cursor.execute('''
+            UPDATE multiline_sessions
+            SET items_answered = ?, consecutive_correct = ?, session_end = CURRENT_TIMESTAMP, completed = 1
+            WHERE id = ?
+        ''', (items_answered_str, consecutive_correct, session_id))
+        conn.commit()
+        conn.close()
+        return jsonify({
+            'success': True,
+            'is_correct': False,
+            'completed': True,
+            'score': consecutive_correct,
+            'required': required_correct
+        })
+
+    # Check if we've reached the required count
+    if consecutive_correct >= required_correct:
+        # Success! Mark session as complete
+        cursor.execute('''
+            UPDATE multiline_sessions
+            SET items_answered = ?, consecutive_correct = ?, session_end = CURRENT_TIMESTAMP, completed = 1
+            WHERE id = ?
+        ''', (items_answered_str, consecutive_correct, session_id))
+        conn.commit()
+        conn.close()
+        return jsonify({
+            'success': True,
+            'is_correct': True,
+            'completed': True,
+            'score': consecutive_correct,
+            'required': required_correct
+        })
+
+    # Continue - update session and continue
+    cursor.execute('''
+        UPDATE multiline_sessions
+        SET items_answered = ?, consecutive_correct = ?
+        WHERE id = ?
+    ''', (items_answered_str, consecutive_correct, session_id))
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        'success': True,
+        'is_correct': True,
+        'completed': False,
+        'score': consecutive_correct,
+        'required': required_correct
+    })
+
+
+@app.route('/multiline_stats')
+def show_multiline_stats():
+    """Show multiline item statistics."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT
+            mq.category,
+            mi.item_text,
+            ms.times_shown,
+            ms.times_correct,
+            ms.success_rate,
+            ms.weight,
+            ms.is_mastered
+        FROM multiline_items mi
+        JOIN multiline_questions mq ON mi.question_id = mq.id
+        JOIN multiline_stats ms ON mi.id = ms.item_id
+        WHERE ms.times_shown > 0
+        ORDER BY ms.weight DESC
+    ''')
+
+    stats = cursor.fetchall()
+    conn.close()
+
+    # Convert to list of dicts for JSON serialization
+    stats_list = [{
+        'category': stat['category'],
+        'item': stat['item_text'][:60] + '...' if len(stat['item_text']) > 60 else stat['item_text'],
+        'times_shown': stat['times_shown'],
+        'times_correct': stat['times_correct'],
+        'success_rate': f"{stat['success_rate']:.1%}",
+        'weight': f"{stat['weight']:.2f}",
+        'is_mastered': bool(stat['is_mastered'])
+    } for stat in stats]
+
+    return jsonify(stats_list)
+
+
 # --- Synopsis Routes ---
 @app.route('/synopsis')
 def synopsis():
