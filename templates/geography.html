@@ -428,7 +428,9 @@
             }
 
             // Handle Part 1, Mode 2 - read "Encuentra: <state name>"
-            if (mode === 2) {
+            if (mode === 1) {
+                speakText("¿Qué estado es este?");
+            } else if (mode === 2) {
                 speakText(`Encuentra: ${correctState}`);
             }
 
