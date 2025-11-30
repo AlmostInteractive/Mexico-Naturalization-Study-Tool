@@ -187,7 +187,13 @@ def get_unmastered_question(cursor, max_chunk, available_questions):
 
     # Create weighted list based on current weights
     weights = [q['weight'] for q in unmastered_questions]
-    selected_question = random.choices(unmastered_questions, weights=weights, k=1)[0]
+
+    # If all weights are zero, use uniform random selection
+    if sum(weights) == 0:
+        selected_question = random.choice(unmastered_questions)
+    else:
+        selected_question = random.choices(unmastered_questions, weights=weights, k=1)[0]
+
     return dict(selected_question)
 
 
@@ -204,7 +210,13 @@ def get_mastered_question(cursor, max_chunk, available_questions):
 
     # Create weighted list based on aging weights
     weights = [q['weight'] for q in mastered_questions]
-    selected_question = random.choices(mastered_questions, weights=weights, k=1)[0]
+
+    # If all weights are zero, use uniform random selection
+    if sum(weights) == 0:
+        selected_question = random.choice(mastered_questions)
+    else:
+        selected_question = random.choices(mastered_questions, weights=weights, k=1)[0]
+
     return dict(selected_question)
 
 
@@ -652,26 +664,38 @@ def get_weighted_geography_question(exclude_geography_id=None):
         # 70% chance: Select from unmastered questions
         if unmastered:
             weights = [g['weight'] for g in unmastered]
-            selected = random.choices(unmastered, weights=weights, k=1)[0]
+            if sum(weights) == 0:
+                selected = random.choice(unmastered)
+            else:
+                selected = random.choices(unmastered, weights=weights, k=1)[0]
             conn.close()
             return dict(selected)
         # Fallback to mastered if no unmastered questions
         if mastered:
             weights = [g['weight'] for g in mastered]
-            selected = random.choices(mastered, weights=weights, k=1)[0]
+            if sum(weights) == 0:
+                selected = random.choice(mastered)
+            else:
+                selected = random.choices(mastered, weights=weights, k=1)[0]
             conn.close()
             return dict(selected)
     else:
         # 30% chance: Select from mastered questions
         if mastered:
             weights = [g['weight'] for g in mastered]
-            selected = random.choices(mastered, weights=weights, k=1)[0]
+            if sum(weights) == 0:
+                selected = random.choice(mastered)
+            else:
+                selected = random.choices(mastered, weights=weights, k=1)[0]
             conn.close()
             return dict(selected)
         # Fallback to unmastered if no mastered questions
         if unmastered:
             weights = [g['weight'] for g in unmastered]
-            selected = random.choices(unmastered, weights=weights, k=1)[0]
+            if sum(weights) == 0:
+                selected = random.choice(unmastered)
+            else:
+                selected = random.choices(unmastered, weights=weights, k=1)[0]
             conn.close()
             return dict(selected)
 
@@ -1104,26 +1128,38 @@ def get_weighted_multiline_question(exclude_question_id=None):
         # 70% chance: Select from unmastered questions
         if unmastered:
             weights = [q['avg_weight'] for q in unmastered]
-            selected = random.choices(unmastered, weights=weights, k=1)[0]
+            if sum(weights) == 0:
+                selected = random.choice(unmastered)
+            else:
+                selected = random.choices(unmastered, weights=weights, k=1)[0]
             conn.close()
             return dict(selected)
         # Fallback to mastered if no unmastered questions
         if mastered:
             weights = [q['avg_weight'] for q in mastered]
-            selected = random.choices(mastered, weights=weights, k=1)[0]
+            if sum(weights) == 0:
+                selected = random.choice(mastered)
+            else:
+                selected = random.choices(mastered, weights=weights, k=1)[0]
             conn.close()
             return dict(selected)
     else:
         # 30% chance: Select from mastered questions
         if mastered:
             weights = [q['avg_weight'] for q in mastered]
-            selected = random.choices(mastered, weights=weights, k=1)[0]
+            if sum(weights) == 0:
+                selected = random.choice(mastered)
+            else:
+                selected = random.choices(mastered, weights=weights, k=1)[0]
             conn.close()
             return dict(selected)
         # Fallback to unmastered if no mastered questions
         if unmastered:
             weights = [q['avg_weight'] for q in unmastered]
-            selected = random.choices(unmastered, weights=weights, k=1)[0]
+            if sum(weights) == 0:
+                selected = random.choice(unmastered)
+            else:
+                selected = random.choices(unmastered, weights=weights, k=1)[0]
             conn.close()
             return dict(selected)
 
@@ -1214,7 +1250,10 @@ def multiline_quiz():
 
     # Select one correct answer from available items (weighted selection)
     weights = [item['weight'] for item in available_items]
-    correct_item = random.choices(available_items, weights=weights, k=1)[0]
+    if sum(weights) == 0:
+        correct_item = random.choice(available_items)
+    else:
+        correct_item = random.choices(available_items, weights=weights, k=1)[0]
 
     # Select 3 random distractors from OTHER questions in the same category
     cursor.execute('''
