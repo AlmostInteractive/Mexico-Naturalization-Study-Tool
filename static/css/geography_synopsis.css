@@ -1,0 +1,324 @@
+/* Geography Synopsis Styles */
+
+.intro-section {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.intro-section p {
+    margin: 10px 0;
+}
+
+/* ============================================
+   DESKTOP VIEW - Table Layout
+   ============================================ */
+
+.desktop-view {
+    display: block;
+}
+
+.mobile-view {
+    display: none;
+}
+
+.geography-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background-color: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.geography-table thead {
+    background-color: #005a31;
+    color: white;
+}
+
+.geography-table th {
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: bold;
+    border-bottom: 2px solid #004020;
+}
+
+.geography-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #dee2e6;
+    vertical-align: top;
+}
+
+.geography-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.geography-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Column widths */
+.col-state {
+    width: 15%;
+}
+
+.col-capital {
+    width: 15%;
+}
+
+.col-pueblos {
+    width: 25%;
+}
+
+.col-unesco {
+    width: 22%;
+}
+
+.col-archaeological {
+    width: 23%;
+}
+
+/* Cell styling */
+.state-name {
+    font-weight: bold;
+    color: #005a31;
+}
+
+.capital-name {
+    color: #333;
+}
+
+.list-cell ul {
+    margin: 0;
+    padding-left: 20px;
+    list-style-type: disc;
+}
+
+.list-cell li {
+    margin: 4px 0;
+    font-size: 0.95em;
+    line-height: 1.4;
+}
+
+.no-data {
+    color: #999;
+    font-style: italic;
+}
+
+/* ============================================
+   LEGEND SECTION
+   ============================================ */
+
+.legend-section {
+    margin-top: 40px;
+    padding: 20px;
+    background-color: #fff8e1;
+    border-left: 4px solid #ffc107;
+    border-radius: 8px;
+}
+
+.legend-section h3 {
+    color: #856404;
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.2em;
+}
+
+.legend-category {
+    margin-bottom: 20px;
+}
+
+.legend-category:last-child {
+    margin-bottom: 0;
+}
+
+.legend-category h4 {
+    color: #005a31;
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.05em;
+}
+
+.legend-category ul {
+    margin: 0;
+    padding-left: 20px;
+    list-style-type: none;
+}
+
+.legend-category li {
+    margin: 8px 0;
+    line-height: 1.6;
+    color: #333;
+}
+
+.legend-category sup {
+    color: #005a31;
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+/* ============================================
+   MOBILE VIEW - Collapsible Cards
+   ============================================ */
+
+@media (max-width: 768px) {
+    .desktop-view {
+        display: none;
+    }
+
+    .mobile-view {
+        display: block;
+    }
+
+    .content-container {
+        padding: 15px;
+    }
+
+    .controls-bar {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        justify-content: center;
+    }
+
+    .control-btn {
+        background-color: #005a31;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-size: 0.9em;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .control-btn:hover {
+        background-color: #007a42;
+    }
+
+    .control-btn:active {
+        background-color: #004020;
+    }
+
+    /* State Cards */
+    .state-card {
+        background-color: white;
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        overflow: hidden;
+        transition: all 0.2s;
+    }
+
+    .state-card:hover {
+        border-color: #005a31;
+        box-shadow: 0 2px 8px rgba(0, 90, 49, 0.15);
+    }
+
+    .state-header {
+        background-color: #f8f9fa;
+        padding: 15px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .state-header:active {
+        background-color: #e9ecef;
+    }
+
+    .state-header h3 {
+        margin: 0;
+        color: #005a31;
+        font-size: 1.1em;
+    }
+
+    .toggle-icon {
+        font-size: 1.2em;
+        color: #005a31;
+        transition: transform 0.2s;
+    }
+
+    .state-card.expanded .toggle-icon {
+        transform: rotate(180deg);
+    }
+
+    .state-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+    }
+
+    .state-card.expanded .state-content {
+        max-height: 3000px;
+        transition: max-height 0.5s ease-in;
+    }
+
+    .info-row {
+        padding: 12px 15px;
+        background-color: #e8f5e9;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        gap: 10px;
+    }
+
+    .info-label {
+        font-weight: bold;
+        color: #005a31;
+    }
+
+    .info-value {
+        color: #333;
+    }
+
+    .info-section {
+        padding: 15px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .info-section:last-child {
+        border-bottom: none;
+    }
+
+    .section-header {
+        font-weight: bold;
+        color: #005a31;
+        margin-bottom: 8px;
+    }
+
+    .info-section ul {
+        margin: 8px 0 0 0;
+        padding-left: 20px;
+        list-style-type: circle;
+    }
+
+    .info-section li {
+        margin: 6px 0;
+        line-height: 1.4;
+        color: #333;
+    }
+
+    .info-section em {
+        color: #999;
+    }
+}
+
+/* Tablet breakpoint - adjust table for better readability */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .geography-table {
+        font-size: 0.9em;
+    }
+
+    .geography-table th,
+    .geography-table td {
+        padding: 10px 12px;
+    }
+
+    .list-cell li {
+        font-size: 0.9em;
+    }
+}

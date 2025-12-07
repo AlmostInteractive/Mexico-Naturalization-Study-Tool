@@ -2276,6 +2276,95 @@ def synopsis7():
     return render_template('synopsis7.html')
 
 
+@app.route('/synopsis_geography')
+def synopsis_geography():
+    """Display the comprehensive geography reference page."""
+    conn = get_db_connection()
+
+    # Get all states with capitals
+    states = conn.execute('SELECT state_name, capital FROM geography_questions ORDER BY state_name').fetchall()
+
+    # Find multi-state UNESCO sites
+    unesco_multi_state = conn.execute('''
+        SELECT site_name, GROUP_CONCAT(state_name, ', ') as states, COUNT(*) as state_count
+        FROM unesco_sites
+        GROUP BY site_name
+        HAVING state_count > 1
+        ORDER BY site_name
+    ''').fetchall()
+
+    # Find multi-state archaeological sites
+    arch_multi_state = conn.execute('''
+        SELECT site_name, GROUP_CONCAT(state_name, ', ') as states, COUNT(*) as state_count
+        FROM archaeological_sites
+        GROUP BY site_name
+        HAVING state_count > 1
+        ORDER BY site_name
+    ''').fetchall()
+
+    # Create superscript mappings and legend data
+    unesco_superscripts = {}
+    unesco_legend = []
+    for idx, site in enumerate(unesco_multi_state, 1):
+        unesco_superscripts[site['site_name']] = idx
+        unesco_legend.append({
+            'number': idx,
+            'site_name': site['site_name'],
+            'states': site['states']
+        })
+
+    arch_superscripts = {}
+    arch_legend = []
+    for idx, site in enumerate(arch_multi_state, 1):
+        arch_superscripts[site['site_name']] = idx
+        arch_legend.append({
+            'number': idx,
+            'site_name': site['site_name'],
+            'states': site['states']
+        })
+
+    # Build a comprehensive geography data structure
+    geography_data = []
+
+    for state in states:
+        state_name = state['state_name']
+
+        # Get pueblos for this state
+        pueblos = conn.execute(
+            'SELECT pueblo_name FROM pueblos_magicos WHERE state_name = ? ORDER BY pueblo_name',
+            (state_name,)
+        ).fetchall()
+
+        # Get UNESCO sites for this state
+        unesco_sites = conn.execute(
+            'SELECT site_name FROM unesco_sites WHERE state_name = ? ORDER BY site_name',
+            (state_name,)
+        ).fetchall()
+
+        # Get archaeological sites for this state
+        archaeological_sites = conn.execute(
+            'SELECT site_name FROM archaeological_sites WHERE state_name = ? ORDER BY site_name',
+            (state_name,)
+        ).fetchall()
+
+        geography_data.append({
+            'state': state_name,
+            'capital': state['capital'],
+            'pueblos': [p['pueblo_name'] for p in pueblos],
+            'unesco': [u['site_name'] for u in unesco_sites],
+            'archaeological': [a['site_name'] for a in archaeological_sites]
+        })
+
+    conn.close()
+
+    return render_template('synopsis_geography.html',
+                         geography_data=geography_data,
+                         unesco_superscripts=unesco_superscripts,
+                         arch_superscripts=arch_superscripts,
+                         unesco_legend=unesco_legend,
+                         arch_legend=arch_legend)
+
+
 # --- Main execution block ---
 if __name__ == '__main__':
     # Runs the Flask app. 'debug=True' means the server will auto-reload

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geography Reference - Mexico Study Guide</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/synopsis.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/geography_synopsis.css') }}">
+</head>
+<body>
+    <!-- Main Menu Bar -->
+    <div class="menu-bar">
+        <div class="menu-left">
+            <a href="/synopsis" class="menu-nav-link active">📖 Sinopsis</a>
+            <span class="menu-separator">|</span>
+            <a href="/" class="menu-nav-link">📝 Preguntas</a>
+            <span class="menu-separator">|</span>
+            <a href="/geography_states" class="menu-nav-link">🗺️ Geografía</a>
+        </div>
+    </div>
+
+    <!-- Sub Menu Bar (Sinopsis Section) -->
+    <div class="submenu-bar">
+        <a href="/synopsis1" class="submenu-nav-link">1. Antiguo</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis2" class="submenu-nav-link">2. Colonial</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis3" class="submenu-nav-link">3. Reformas Borbónicas</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis4" class="submenu-nav-link">4. Independencia</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis5" class="submenu-nav-link">5. Porfiriato</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis6" class="submenu-nav-link">6. Revolución</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis7" class="submenu-nav-link">7. Moderno</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis_geography" class="submenu-nav-link active">🗺️ Geografía</a>
+    </div>
+
+    <div class="content-container">
+        <h1 class="centered">🗺️ Geography Reference</h1>
+
+        <div class="intro-section">
+            <p>This comprehensive reference shows all geographic information organized by state. Use this to study before taking the geography quizzes.</p>
+            <p><strong>32 States</strong> • <strong>177 Pueblos Mágicos</strong> • <strong>54 UNESCO Sites</strong> • <strong>176 Archaeological Sites</strong></p>
+        </div>
+
+        <!-- Desktop Table View -->
+        <div class="desktop-view">
+            <table class="geography-table">
+                <thead>
+                    <tr>
+                        <th class="col-state">Estado</th>
+                        <th class="col-capital">Capital</th>
+                        <th class="col-pueblos">Pueblos Mágicos</th>
+                        <th class="col-unesco">UNESCO Sites</th>
+                        <th class="col-archaeological">Archaeological Sites</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in geography_data %}
+                    <tr>
+                        <td class="state-name">{{ item.state }}</td>
+                        <td class="capital-name">{{ item.capital }}</td>
+                        <td class="list-cell">
+                            {% if item.pueblos %}
+                                <ul>
+                                    {% for pueblo in item.pueblos %}
+                                    <li>{{ pueblo }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <span class="no-data">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="list-cell">
+                            {% if item.unesco %}
+                                <ul>
+                                    {% for site in item.unesco %}
+                                    <li>{{ site }}{% if site in unesco_superscripts %}<sup>{{ unesco_superscripts[site] }}</sup>{% endif %}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <span class="no-data">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="list-cell">
+                            {% if item.archaeological %}
+                                <ul>
+                                    {% for site in item.archaeological %}
+                                    <li>{{ site }}{% if site in arch_superscripts %}<sup>{{ arch_superscripts[site] }}</sup>{% endif %}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <span class="no-data">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Mobile Card View -->
+        <div class="mobile-view">
+            <div class="controls-bar">
+                <button id="expandAll" class="control-btn">Expand All</button>
+                <button id="collapseAll" class="control-btn">Collapse All</button>
+            </div>
+
+            {% for item in geography_data %}
+            <div class="state-card">
+                <div class="state-header" onclick="toggleCard(this)">
+                    <h3>📍 {{ item.state }}</h3>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="state-content">
+                    <div class="info-row">
+                        <span class="info-label">Capital:</span>
+                        <span class="info-value">{{ item.capital }}</span>
+                    </div>
+
+                    {% if item.pueblos %}
+                    <div class="info-section">
+                        <div class="section-header">Pueblos Mágicos ({{ item.pueblos|length }}):</div>
+                        <ul>
+                            {% for pueblo in item.pueblos %}
+                            <li>{{ pueblo }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {% if item.unesco %}
+                    <div class="info-section">
+                        <div class="section-header">UNESCO Sites ({{ item.unesco|length }}):</div>
+                        <ul>
+                            {% for site in item.unesco %}
+                            <li>{{ site }}{% if site in unesco_superscripts %}<sup>{{ unesco_superscripts[site] }}</sup>{% endif %}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {% if item.archaeological %}
+                    <div class="info-section">
+                        <div class="section-header">Archaeological Sites ({{ item.archaeological|length }}):</div>
+                        <ul>
+                            {% for site in item.archaeological %}
+                            <li>{{ site }}{% if site in arch_superscripts %}<sup>{{ arch_superscripts[site] }}</sup>{% endif %}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {% if not item.pueblos and not item.unesco and not item.archaeological %}
+                    <div class="info-section">
+                        <em>No additional sites in this state</em>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Legend for multi-state sites -->
+        {% if unesco_legend or arch_legend %}
+        <div class="legend-section">
+            <h3>Multi-State Sites Legend</h3>
+
+            {% if unesco_legend %}
+            <div class="legend-category">
+                <h4>UNESCO World Heritage Sites</h4>
+                <ul>
+                    {% for item in unesco_legend %}
+                    <li><sup>{{ item.number }}</sup> <strong>{{ item.site_name }}</strong> spans multiple states: {{ item.states }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if arch_legend %}
+            <div class="legend-category">
+                <h4>Archaeological Sites</h4>
+                <ul>
+                    {% for item in arch_legend %}
+                    <li><sup>{{ item.number }}</sup> <strong>{{ item.site_name }}</strong> spans multiple states: {{ item.states }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="next-section">
+            <a href="/synopsis">← Back to Synopsis</a>
+        </div>
+    </div>
+
+    <script>
+        function toggleCard(header) {
+            const card = header.parentElement;
+            const content = card.querySelector('.state-content');
+            const icon = header.querySelector('.toggle-icon');
+
+            if (card.classList.contains('expanded')) {
+                card.classList.remove('expanded');
+                icon.textContent = '▼';
+            } else {
+                card.classList.add('expanded');
+                icon.textContent = '▲';
+            }
+        }
+
+        document.getElementById('expandAll').addEventListener('click', function() {
+            document.querySelectorAll('.state-card').forEach(card => {
+                card.classList.add('expanded');
+                card.querySelector('.toggle-icon').textContent = '▲';
+            });
+        });
+
+        document.getElementById('collapseAll').addEventListener('click', function() {
+            document.querySelectorAll('.state-card').forEach(card => {
+                card.classList.remove('expanded');
+                card.querySelector('.toggle-icon').textContent = '▼';
+            });
+        });
+    </script>
+</body>
+</html>
