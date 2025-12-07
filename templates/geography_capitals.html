@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Capitales de México - Práctica</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/geography.css') }}">
+</head>
+<body>
+    <!-- Main Menu Bar -->
+    <div class="menu-bar">
+        <div class="menu-left">
+            <a href="/synopsis" class="menu-nav-link">📖 Sinopsis</a>
+            <span class="menu-separator">|</span>
+            <a href="/" class="menu-nav-link">📝 Preguntas</a>
+            <span class="menu-separator">|</span>
+            <a href="/geography_states" class="menu-nav-link active">🗺️ Geografía</a>
+        </div>
+        <div class="menu-right">
+            <div class="menu-item">
+                <label for="speech-rate">Velocidad:</label>
+                <select id="speech-rate">
+                    <option value="0.7">Lento</option>
+                    <option value="1.0" selected>Normal</option>
+                    <option value="1.2">Rápido</option>
+                </select>
+            </div>
+            <button id="menu-speech-toggle" class="menu-toggle">🔊 Audio: ON</button>
+        </div>
+    </div>
+
+    <!-- Sub Menu Bar (Geografía Section) -->
+    <div class="submenu-bar">
+        <a href="/geography_states" class="submenu-nav-link">Estados</a>
+        <span class="submenu-separator">|</span>
+        <a href="/geography_capitals" class="submenu-nav-link active">Capitales</a>
+        <span class="submenu-separator">|</span>
+        <a href="/geography_pueblos" class="submenu-nav-link">Pueblos Mágicos</a>
+        <span class="submenu-separator">|</span>
+        <a href="/geography_unesco" class="submenu-nav-link">UNESCO Patrimonio</a>
+        <span class="submenu-separator">|</span>
+        <a href="/geography_archaeological" class="submenu-nav-link">Zonas Arqueológicos</a>
+    </div>
+
+    <div class="quiz-container">
+        <h1>Capitales de México</h1>
+
+        <!-- Progress indicator -->
+        <div class="progress-container">
+            <div class="progress-stats">
+                Dominados: {{ mastered_count }} de {{ total_states }}
+            </div>
+        </div>
+
+        <div class="question">{{ question_text }}</div>
+
+        <!-- Options -->
+        <div class="options">
+            {% for option in options %}
+                <button class="option-btn">{{ option }}</button>
+            {% endfor %}
+        </div>
+
+        <!-- Hidden data for JavaScript -->
+        <div id="correct-answer" style="display: none;">{{ correct_answer }}</div>
+        <div id="state-name" style="display: none;">{{ state_name }}</div>
+        <div id="geography-id" style="display: none;">{{ geography_id }}</div>
+
+        <a href="#" id="next-btn" class="next-btn">Siguiente Pregunta</a>
+    </div>
+
+    <!-- Shared speech functionality -->
+    <script src="/static/speech.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const optionsContainer = document.querySelector('.options');
+            const correctAnswer = document.getElementById('correct-answer').textContent.trim();
+            const stateName = document.getElementById('state-name').textContent.trim();
+            const geographyId = parseInt(document.getElementById('geography-id').textContent.trim());
+            const nextButton = document.getElementById('next-btn');
+            const questionText = document.querySelector('.question').textContent.trim();
+
+            // Next button click handler
+            nextButton.addEventListener('click', (event) => {
+                event.preventDefault();
+                window.location.href = '/geography_capitals';
+            });
+
+            // Read the question aloud
+            speakText(questionText);
+
+            // Answer selection handling
+            optionsContainer.addEventListener('click', async (event) => {
+                if (event.target.classList.contains('option-btn') && !event.target.disabled) {
+                    const selectedOption = event.target;
+                    const allOptions = optionsContainer.querySelectorAll('.option-btn');
+                    const selectedAnswer = selectedOption.textContent;
+                    const isCorrect = selectedAnswer === correctAnswer;
+
+                    // Disable all buttons
+                    allOptions.forEach(btn => btn.disabled = true);
+
+                    // Show correct/incorrect
+                    if (isCorrect) {
+                        selectedOption.classList.add('correct');
+                    } else {
+                        selectedOption.classList.add('incorrect');
+                        allOptions.forEach(btn => {
+                            if (btn.textContent === correctAnswer) {
+                                btn.classList.add('correct');
+                            }
+                        });
+                    }
+
+                    const speechText = isCorrect
+                        ? `Correcto: ${correctAnswer} es la capital de ${stateName}`
+                        : `Incorrecto: ${correctAnswer} es la capital de ${stateName}`;
+
+                    // Send answer to server
+                    fetch('/geography_answer', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            geography_id: geographyId,
+                            selected_answer: selectedAnswer,
+                            correct_answer: correctAnswer,
+                            part: 2
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        nextButton.style.visibility = 'visible';
+                        setTimeout(() => {
+                            speakText(speechText, () => {
+                                setTimeout(() => window.location.href = '/geography_capitals', 1000);
+                            });
+                        }, 300);
+                    })
+                    .catch(error => console.error('Error:', error));
+                }
+            });
+        });
+    </script>
+</body>
+</html>

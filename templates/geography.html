@@ -195,7 +195,7 @@
         </div>
         {% endif %}
 
-        {% if mode == 1 %}
+        {% if (part == 1 and mode == 1) or part == 2 or part == 3 %}
         <div class="options">
             {% for option in options %}
                 <button class="option-btn">{{ option }}</button>
@@ -212,6 +212,9 @@
         <div id="mode" style="display: none;">{{ mode }}</div>
         <div id="section" style="display: none;">{{ section if section else '' }}</div>
         <div id="part" style="display: none;">{{ part }}</div>
+        <div id="pueblo-id" style="display: none;">{{ pueblo_id if pueblo_id else '' }}</div>
+        <div id="pueblo-name" style="display: none;">{{ pueblo_name if pueblo_name else '' }}</div>
+        <div id="correct-pueblo-ids" style="display: none;">{{ correct_pueblo_ids if correct_pueblo_ids else '' }}</div>
 
         <a href="#" id="next-btn" class="next-btn">Siguiente Pregunta</a>
     </div>
@@ -234,10 +237,14 @@
             const part = parseInt(document.getElementById('part').textContent.trim());
             const section = document.getElementById('section').textContent.trim();
             const nextButton = document.getElementById('next-btn');
+            const puebloId = document.getElementById('pueblo-id').textContent.trim();
+            const puebloName = document.getElementById('pueblo-name').textContent.trim();
+            const correctPuebloIds = document.getElementById('correct-pueblo-ids').textContent.trim();
 
             // Determine next URL based on section
             const nextUrl = section === 'states' ? '/geography_states' :
-                           section === 'capitals' ? '/geography_capitals' : '/geography_states';
+                           section === 'capitals' ? '/geography_capitals' :
+                           section === 'pueblos' ? '/geography_pueblos' : '/geography_states';
 
             // Add click handler to next button
             nextButton.addEventListener('click', (event) => {
@@ -273,38 +280,48 @@
                             });
                         }
 
-                        // Determine the speech text based on part and correctness
+                        // Determine the speech text based on section and correctness
                         let speechText;
-                        if (isCorrect) {
-                            if (part === 2 && stateName) {
-                                // Capital question: "Correcto: <capital> es la capital de <state>"
+                        if (section === 'pueblos') {
+                            // Pueblos section
+                            speechText = isCorrect ? 'Correcto' : `Incorrecto: la respuesta correcta es ${correctAnswer}`;
+                        } else if (part === 2 && stateName) {
+                            // Capital question
+                            if (isCorrect) {
                                 speechText = `Correcto: ${correctAnswer} es la capital de ${stateName}`;
                             } else {
-                                // State question: "Correcto" or "Correcto <state name>" for mode 2
-                                speechText = (mode === 1) ? `Correcto, ${correctState}` : `Correcto`;
+                                speechText = `Incorrecto: ${correctAnswer} es la capital de ${stateName}`;
                             }
                         } else {
-                            if (part === 2 && stateName) {
-                                // Capital question: "Incorrecto: <capital> es la capital de <state>"
-                                speechText = `Incorrecto: ${correctAnswer} es la capital de ${stateName}`;
+                            // State question
+                            if (isCorrect) {
+                                speechText = (mode === 1) ? `Correcto, ${correctState}` : `Correcto`;
                             } else {
-                                // State question: "La respuesta correcta es <answer>"
                                 speechText = `La respuesta correcta es ${correctAnswer}`;
                             }
                         }
 
                         // Send answer to server for tracking
-                        fetch('/geography_answer', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
+                        const fetchUrl = section === 'pueblos' ? '/pueblos_answer' : '/geography_answer';
+                        const requestData = section === 'pueblos'
+                            ? {
+                                selected_answer: selectedAnswer,
+                                correct_answer: correctAnswer,
+                                correct_pueblo_ids: correctPuebloIds
+                              }
+                            : {
                                 geography_id: parseInt(geographyId),
                                 selected_answer: selectedAnswer,
                                 correct_answer: correctAnswer,
                                 part: part
-                            })
+                              };
+
+                        fetch(fetchUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(requestData)
                         })
                         .then(response => response.json())
                         .then(data => {
@@ -326,15 +343,15 @@
                 });
             }
 
-            // Handle Part 2 (capital question)
-            if (part === 2) {
-                // Read the capital question
+            // Handle Part 2 (capital question) and Part 3 (pueblos question)
+            if (part === 2 || part === 3) {
+                // Read the question text
                 const questionText = document.querySelector('.question').textContent.trim();
                 speakText(questionText);
                 return; // Skip map loading
             }
 
-            // Handle Part 1, Mode 2 - read "Encuentra: <state name>"
+            // Handle Part 1 (states), Mode 1 or Mode 2 - read question
             if (mode === 1) {
                 speakText("¿Qué estado es este?");
             } else if (mode === 2) {

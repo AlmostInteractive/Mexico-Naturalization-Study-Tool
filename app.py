@@ -542,14 +542,14 @@ def show_progress():
 
 
 # --- Geography Quiz Functions ---
-def get_rolling_success_rate_geography(geography_id, cursor, window_size=RECENT_ATTEMPTS_WINDOW):
+def get_rolling_success_rate_geography(geography_id, part, cursor, window_size=RECENT_ATTEMPTS_WINDOW):
     """Calculate success rate based on the last N attempts for geography questions."""
     cursor.execute('''
         SELECT is_correct FROM geography_attempts
-        WHERE geography_id = ?
+        WHERE geography_id = ? AND part = ?
         ORDER BY attempt_timestamp DESC
         LIMIT ?
-    ''', (geography_id, window_size))
+    ''', (geography_id, part, window_size))
 
     recent_attempts = cursor.fetchall()
 
@@ -562,13 +562,13 @@ def get_rolling_success_rate_geography(geography_id, cursor, window_size=RECENT_
     return recent_correct / recent_total, recent_total
 
 
-def is_geography_mastered(geography_id, cursor):
+def is_geography_mastered(geography_id, part, cursor):
     """Check if a geography question is mastered (80%+ rolling success rate, 3+ attempts)."""
-    rolling_success_rate, attempts = get_rolling_success_rate_geography(geography_id, cursor)
+    rolling_success_rate, attempts = get_rolling_success_rate_geography(geography_id, part, cursor)
     return attempts >= 3 and rolling_success_rate >= 0.8
 
 
-def update_geography_stats(geography_id, is_correct):
+def update_geography_stats(geography_id, part, is_correct):
     """
     Update statistics for a geography question after it's been answered.
 
@@ -581,15 +581,15 @@ def update_geography_stats(geography_id, is_correct):
 
     # Record the individual attempt
     cursor.execute('''
-        INSERT INTO geography_attempts (geography_id, is_correct)
-        VALUES (?, ?)
-    ''', (geography_id, is_correct))
+        INSERT INTO geography_attempts (geography_id, part, is_correct)
+        VALUES (?, ?, ?)
+    ''', (geography_id, part, is_correct))
 
     # Get current stats (for total tracking)
     cursor.execute('''
         SELECT times_answered, times_correct FROM geography_stats
-        WHERE geography_id = ?
-    ''', (geography_id,))
+        WHERE geography_id = ? AND part = ?
+    ''', (geography_id, part))
 
     result = cursor.fetchone()
     times_answered = result['times_answered'] + 1
@@ -599,7 +599,7 @@ def update_geography_stats(geography_id, is_correct):
     lifetime_success_rate = times_correct / times_answered
 
     # Determine if this question is mastered (for category separation)
-    is_mastered = is_geography_mastered(geography_id, cursor)
+    is_mastered = is_geography_mastered(geography_id, part, cursor)
     is_mastered_int = 1 if is_mastered else 0
 
     if is_correct:
@@ -607,18 +607,19 @@ def update_geography_stats(geography_id, is_correct):
         weight = 0.0
 
         # Increment all OTHER questions in the same category by 0.1
-        # Category = mastered vs unmastered
+        # Category = same part + mastered vs unmastered
         cursor.execute('''
             UPDATE geography_stats
             SET weight = weight + ?
             WHERE geography_id IN (
                 SELECT id FROM geography_questions WHERE id != ?
             )
+            AND part = ?
             AND is_mastered = ?
-        ''', (WEIGHT_INCREMENT, geography_id, is_mastered_int))
+        ''', (WEIGHT_INCREMENT, geography_id, part, is_mastered_int))
     else:
         # Keep current weight (it will accumulate as other questions are answered correctly)
-        cursor.execute('SELECT weight FROM geography_stats WHERE geography_id = ?', (geography_id,))
+        cursor.execute('SELECT weight FROM geography_stats WHERE geography_id = ? AND part = ?', (geography_id, part))
         current_weight = cursor.fetchone()['weight']
         weight = current_weight
 
@@ -626,24 +627,25 @@ def update_geography_stats(geography_id, is_correct):
     cursor.execute('''
         UPDATE geography_stats
         SET times_answered = ?, times_correct = ?, success_rate = ?, weight = ?, is_mastered = ?
-        WHERE geography_id = ?
-    ''', (times_answered, times_correct, lifetime_success_rate, weight, is_mastered_int, geography_id))
+        WHERE geography_id = ? AND part = ?
+    ''', (times_answered, times_correct, lifetime_success_rate, weight, is_mastered_int, geography_id, part))
 
     conn.commit()
     conn.close()
 
 
-def get_weighted_geography_question(exclude_geography_id=None):
+def get_weighted_geography_question(part, exclude_geography_id=None):
     """Select a geography question using 70/30 strategy: 70% unmastered, 30% mastered."""
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Get all geography questions with their stats
+    # Get all geography questions with their stats for the specified part
     cursor.execute('''
         SELECT g.id, g.state_number, g.state_name, gs.weight
         FROM geography_questions g
         JOIN geography_stats gs ON g.id = gs.geography_id
-    ''')
+        WHERE gs.part = ?
+    ''', (part,))
 
     geographies = cursor.fetchall()
 
@@ -656,8 +658,8 @@ def get_weighted_geography_question(exclude_geography_id=None):
         return None
 
     # Separate into mastered and unmastered
-    unmastered = [g for g in geographies if not is_geography_mastered(g['id'], cursor)]
-    mastered = [g for g in geographies if is_geography_mastered(g['id'], cursor)]
+    unmastered = [g for g in geographies if not is_geography_mastered(g['id'], part, cursor)]
+    mastered = [g for g in geographies if is_geography_mastered(g['id'], part, cursor)]
 
     # 70/30 selection strategy
     if random.random() < 0.7:
@@ -716,8 +718,8 @@ def geography_states():
     # Get previous question ID from session to avoid repeating
     prev_geography_id = session.get('prev_geography_states_id')
 
-    # Select a geography question using weighted probability
-    geography_data = get_weighted_geography_question(exclude_geography_id=prev_geography_id)
+    # Select a geography question using weighted probability (part 1 = states)
+    geography_data = get_weighted_geography_question(part=1, exclude_geography_id=prev_geography_id)
 
     if not geography_data:
         return "No geography questions available!", 500
@@ -750,7 +752,7 @@ def geography_states():
         options = distractors + [correct_state]
         random.shuffle(options)
 
-    # Get progress stats
+    # Get progress stats for part 1 (states)
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
@@ -758,30 +760,25 @@ def geography_states():
                SUM(CASE WHEN times_answered >= 3 THEN 1 ELSE 0 END) as answered_enough,
                COUNT(CASE WHEN times_answered >= 3 THEN 1 END) as answered_count
         FROM geography_stats
+        WHERE part = 1
     ''')
     stats = cursor.fetchone()
 
-    # Count mastered questions
+    # Count mastered questions for part 1 (states)
     cursor.execute('SELECT id FROM geography_questions')
     all_geo_ids = cursor.fetchall()
-    mastered_count = sum(1 for geo_row in all_geo_ids if is_geography_mastered(geo_row['id'], cursor))
+    mastered_count = sum(1 for geo_row in all_geo_ids if is_geography_mastered(geo_row['id'], 1, cursor))
 
     conn.close()
 
     return render_template(
-        'geography.html',
-        section='states',
-        part=1,
+        'geography_states.html',
         geography_id=geography_id,
         state_number=state_number,
         correct_state=correct_state,
-        correct_answer=correct_state,
         options=options,
         mode=mode,
-        question_text=None,
-        state_name=None,
         total_states=stats['total'],
-        answered_count=stats['answered_count'],
         mastered_count=mastered_count
     )
 
@@ -792,8 +789,8 @@ def geography_capitals():
     # Get previous question ID from session to avoid repeating
     prev_geography_id = session.get('prev_geography_capitals_id')
 
-    # Select a geography question using weighted probability
-    geography_data = get_weighted_geography_question(exclude_geography_id=prev_geography_id)
+    # Select a geography question using weighted probability (part 2 = capitals)
+    geography_data = get_weighted_geography_question(part=2, exclude_geography_id=prev_geography_id)
 
     if not geography_data:
         return "No geography questions available!", 500
@@ -843,100 +840,310 @@ def geography_capitals():
     options = distractors + [correct_capital]
     random.shuffle(options)
 
-    # Get progress stats
+    # Get progress stats for part 2 (capitals)
     cursor.execute('''
         SELECT COUNT(*) as total,
                SUM(CASE WHEN times_answered >= 3 THEN 1 ELSE 0 END) as answered_enough,
                COUNT(CASE WHEN times_answered >= 3 THEN 1 END) as answered_count
         FROM geography_stats
+        WHERE part = 2
     ''')
     stats = cursor.fetchone()
 
-    # Count mastered questions
+    # Count mastered questions for part 2 (capitals)
     cursor.execute('SELECT id FROM geography_questions')
     all_geo_ids = cursor.fetchall()
-    mastered_count = sum(1 for geo_row in all_geo_ids if is_geography_mastered(geo_row['id'], cursor))
+    mastered_count = sum(1 for geo_row in all_geo_ids if is_geography_mastered(geo_row['id'], 2, cursor))
 
     conn.close()
 
     return render_template(
-        'geography.html',
-        section='capitals',
-        part=2,
+        'geography_capitals.html',
         geography_id=geography_id,
         question_text=f"¿Cuál es la capital de {state_name}?",
         correct_answer=correct_capital,
         state_name=state_name,
         options=options,
-        mode=1,  # Always mode 1 (multiple choice) for capital questions
-        state_number=None,
-        correct_state=None,
         total_states=stats['total'],
-        answered_count=stats['answered_count'],
         mastered_count=mastered_count
     )
 
 
 @app.route('/geography_pueblos')
 def geography_pueblos():
-    """Placeholder for Pueblos Mágicos quiz (coming soon)."""
+    """Display the Pueblos Mágicos quiz."""
+    # Get previous pueblo ID from session to avoid repeating
+    prev_pueblo_id = session.get('prev_pueblo_id')
+
+    # Select a pueblo using weighted probability
+    pueblo_data = get_weighted_pueblo_question(exclude_pueblo_id=prev_pueblo_id)
+
+    if not pueblo_data:
+        return "No Pueblos Mágicos available!", 500
+
+    pueblo_id = pueblo_data['id']
+    pueblo_name = pueblo_data['pueblo_name']
+    state_name = pueblo_data['state_name']
+
+    # Store this pueblo ID in session for next request
+    session['prev_pueblo_id'] = pueblo_id
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get count of pueblos in this state
+    cursor.execute('''
+        SELECT COUNT(*) as count
+        FROM pueblos_magicos
+        WHERE state_name = ?
+    ''', (state_name,))
+    pueblos_in_state = cursor.fetchone()['count']
+
+    # Determine available modes
+    # Mode 1: Always available
+    # Mode 2: Only if state has 3+ pueblos
+    if pueblos_in_state >= 3:
+        mode = random.randint(1, 2)
+    else:
+        mode = 1
+
+    # Initialize variables
+    question_text = ""
+    correct_answer = ""
+    correct_pueblo_ids = []  # For Mode 2 (multiple pueblos get credit)
+    options = []
+
+    if mode == 1:
+        # Mode 1: "Selecciona el Pueblo Mágico que está en [State]"
+        question_text = f"Selecciona el Pueblo Mágico que está en {state_name}:"
+        correct_answer = pueblo_name
+        correct_pueblo_ids = [pueblo_id]
+
+        # Get 3 distractors from OTHER states
+        cursor.execute('''
+            SELECT pueblo_name FROM pueblos_magicos
+            WHERE state_name != ?
+            ORDER BY RANDOM()
+            LIMIT 3
+        ''', (state_name,))
+        distractors = [row['pueblo_name'] for row in cursor.fetchall()]
+
+        # Combine and shuffle
+        options = distractors + [correct_answer]
+        random.shuffle(options)
+
+    else:  # mode == 2
+        # Mode 2: "Selecciona el Pueblo Mágico que NO está en [State]"
+        question_text = f"Selecciona el Pueblo Mágico que NO está en {state_name}:"
+
+        # Get 3 pueblos from this state (these will be incorrect options)
+        cursor.execute('''
+            SELECT id, pueblo_name FROM pueblos_magicos
+            WHERE state_name = ?
+            ORDER BY RANDOM()
+            LIMIT 3
+        ''', (state_name,))
+        state_pueblos = cursor.fetchall()
+
+        # These 3 pueblos will get credit if the user answers correctly
+        correct_pueblo_ids = [row['id'] for row in state_pueblos]
+        incorrect_options = [row['pueblo_name'] for row in state_pueblos]
+
+        # Get 1 pueblo from another state (this will be the correct answer)
+        cursor.execute('''
+            SELECT pueblo_name FROM pueblos_magicos
+            WHERE state_name != ?
+            ORDER BY RANDOM()
+            LIMIT 1
+        ''', (state_name,))
+        correct_answer_row = cursor.fetchone()
+        correct_answer = correct_answer_row['pueblo_name']
+
+        # Combine and shuffle
+        options = incorrect_options + [correct_answer]
+        random.shuffle(options)
+
+    # Get progress stats
+    cursor.execute('''
+        SELECT COUNT(*) as total,
+               SUM(CASE WHEN times_answered >= 3 THEN 1 ELSE 0 END) as answered_enough,
+               COUNT(CASE WHEN times_answered >= 3 THEN 1 END) as answered_count
+        FROM pueblos_stats
+    ''')
+    stats = cursor.fetchone()
+
+    # Count mastered pueblos
+    cursor.execute('SELECT id FROM pueblos_magicos')
+    all_pueblo_ids = cursor.fetchall()
+    mastered_count = sum(1 for p_row in all_pueblo_ids if is_pueblo_mastered(p_row['id'], cursor))
+
+    conn.close()
+
+    # Convert correct_pueblo_ids list to comma-separated string for template
+    correct_pueblo_ids_str = ','.join(str(pid) for pid in correct_pueblo_ids)
+
+    # For Mode 2, prepare the list of pueblos in the state for audio feedback
+    state_pueblos_str = ''
+    if mode == 2:
+        state_pueblos_str = ', '.join(incorrect_options)
+
     return render_template(
-        'geography.html',
-        section='pueblos',
-        part=3,
-        geography_id=None,
-        question_text="Pueblos Mágicos - Próximamente",
-        correct_answer="",
-        state_name="",
-        options=[],
-        mode=1,
-        state_number=None,
-        correct_state=None,
-        total_states=0,
-        answered_count=0,
-        mastered_count=0
+        'geography_pueblos.html',
+        question_text=question_text,
+        correct_answer=correct_answer,
+        options=options,
+        total_states=stats['total'],
+        mastered_count=mastered_count,
+        correct_pueblo_ids=correct_pueblo_ids_str,
+        mode=mode,
+        state_name=state_name,
+        state_pueblos_str=state_pueblos_str
     )
 
 
 @app.route('/geography_unesco')
 def geography_unesco():
-    """Placeholder for UNESCO Heritage Sites quiz (coming soon)."""
+    """Display the UNESCO Heritage Sites quiz."""
+    prev_site_id = session.get('prev_unesco_id')
+    site_data = get_weighted_unesco_question(exclude_site_id=prev_site_id)
+
+    if not site_data:
+        return "No UNESCO sites available!", 500
+
+    site_id = site_data['id']
+    site_name = site_data['site_name']
+    state_name = site_data['state_name']
+    session['prev_unesco_id'] = site_id
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get count of sites in this state
+    cursor.execute('SELECT COUNT(*) as count FROM unesco_sites WHERE state_name = ?', (state_name,))
+    sites_in_state = cursor.fetchone()['count']
+
+    # Determine mode
+    mode = random.randint(1, 2) if sites_in_state >= 3 else 1
+
+    question_text = ""
+    correct_answer = ""
+    correct_site_ids = []
+    options = []
+
+    if mode == 1:
+        question_text = f"Selecciona el sitio Patrimonio de la Humanidad que está en {state_name}:"
+        correct_answer = site_name
+        correct_site_ids = [site_id]
+
+        cursor.execute('SELECT site_name FROM unesco_sites WHERE state_name != ? ORDER BY RANDOM() LIMIT 3', (state_name,))
+        distractors = [row['site_name'] for row in cursor.fetchall()]
+        options = distractors + [correct_answer]
+        random.shuffle(options)
+    else:
+        question_text = f"Selecciona el sitio Patrimonio de la Humanidad que NO está en {state_name}:"
+        cursor.execute('SELECT id, site_name FROM unesco_sites WHERE state_name = ? ORDER BY RANDOM() LIMIT 3', (state_name,))
+        state_sites = cursor.fetchall()
+        correct_site_ids = [row['id'] for row in state_sites]
+        incorrect_options = [row['site_name'] for row in state_sites]
+        cursor.execute('SELECT site_name FROM unesco_sites WHERE state_name != ? ORDER BY RANDOM() LIMIT 1', (state_name,))
+        correct_answer = cursor.fetchone()['site_name']
+        options = incorrect_options + [correct_answer]
+        random.shuffle(options)
+
+    cursor.execute('SELECT COUNT(*) as total FROM unesco_stats')
+    stats = cursor.fetchone()
+    cursor.execute('SELECT id FROM unesco_sites')
+    all_site_ids = cursor.fetchall()
+    mastered_count = sum(1 for s_row in all_site_ids if is_unesco_mastered(s_row['id'], cursor))
+    conn.close()
+
+    correct_site_ids_str = ','.join(str(sid) for sid in correct_site_ids)
+    state_sites_str = ', '.join(incorrect_options) if mode == 2 else ''
+
     return render_template(
-        'geography.html',
-        section='unesco',
-        part=4,
-        geography_id=None,
-        question_text="Sitios Patrimonio UNESCO - Próximamente",
-        correct_answer="",
-        state_name="",
-        options=[],
-        mode=1,
-        state_number=None,
-        correct_state=None,
-        total_states=0,
-        answered_count=0,
-        mastered_count=0
+        'geography_unesco.html',
+        question_text=question_text,
+        correct_answer=correct_answer,
+        options=options,
+        total_states=stats['total'],
+        mastered_count=mastered_count,
+        correct_site_ids=correct_site_ids_str,
+        mode=mode,
+        state_name=state_name,
+        state_sites_str=state_sites_str
     )
 
 
 @app.route('/geography_archaeological')
 def geography_archaeological():
-    """Placeholder for Archaeological Sites quiz (coming soon)."""
+    """Display the Archaeological Sites quiz."""
+    prev_site_id = session.get('prev_archaeological_id')
+    site_data = get_weighted_archaeological_question(exclude_site_id=prev_site_id)
+
+    if not site_data:
+        return "No archaeological sites available!", 500
+
+    site_id = site_data['id']
+    site_name = site_data['site_name']
+    state_name = site_data['state_name']
+    session['prev_archaeological_id'] = site_id
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get count of sites in this state
+    cursor.execute('SELECT COUNT(*) as count FROM archaeological_sites WHERE state_name = ?', (state_name,))
+    sites_in_state = cursor.fetchone()['count']
+
+    # Determine mode
+    mode = random.randint(1, 2) if sites_in_state >= 3 else 1
+
+    question_text = ""
+    correct_answer = ""
+    correct_site_ids = []
+    options = []
+
+    if mode == 1:
+        question_text = f"Selecciona la zona arqueológica que está en {state_name}:"
+        correct_answer = site_name
+        correct_site_ids = [site_id]
+
+        cursor.execute('SELECT site_name FROM archaeological_sites WHERE state_name != ? ORDER BY RANDOM() LIMIT 3', (state_name,))
+        distractors = [row['site_name'] for row in cursor.fetchall()]
+        options = distractors + [correct_answer]
+        random.shuffle(options)
+    else:
+        question_text = f"Selecciona la zona arqueológica que NO está en {state_name}:"
+        cursor.execute('SELECT id, site_name FROM archaeological_sites WHERE state_name = ? ORDER BY RANDOM() LIMIT 3', (state_name,))
+        state_sites = cursor.fetchall()
+        correct_site_ids = [row['id'] for row in state_sites]
+        incorrect_options = [row['site_name'] for row in state_sites]
+        cursor.execute('SELECT site_name FROM archaeological_sites WHERE state_name != ? ORDER BY RANDOM() LIMIT 1', (state_name,))
+        correct_answer = cursor.fetchone()['site_name']
+        options = incorrect_options + [correct_answer]
+        random.shuffle(options)
+
+    cursor.execute('SELECT COUNT(*) as total FROM archaeological_stats')
+    stats = cursor.fetchone()
+    cursor.execute('SELECT id FROM archaeological_sites')
+    all_site_ids = cursor.fetchall()
+    mastered_count = sum(1 for s_row in all_site_ids if is_archaeological_mastered(s_row['id'], cursor))
+    conn.close()
+
+    correct_site_ids_str = ','.join(str(sid) for sid in correct_site_ids)
+    state_sites_str = ', '.join(incorrect_options) if mode == 2 else ''
+
     return render_template(
-        'geography.html',
-        section='archaeological',
-        part=5,
-        geography_id=None,
-        question_text="Zonas Arqueológicos - Próximamente",
-        correct_answer="",
-        state_name="",
-        options=[],
-        mode=1,
-        state_number=None,
-        correct_state=None,
-        total_states=0,
-        answered_count=0,
-        mastered_count=0
+        'geography_archaeological.html',
+        question_text=question_text,
+        correct_answer=correct_answer,
+        options=options,
+        total_states=stats['total'],
+        mastered_count=mastered_count,
+        correct_site_ids=correct_site_ids_str,
+        mode=mode,
+        state_name=state_name,
+        state_sites_str=state_sites_str
     )
 
 
@@ -948,14 +1155,78 @@ def record_geography_answer():
     geography_id = data.get('geography_id')
     selected_answer = data.get('selected_answer')
     correct_answer = data.get('correct_answer')
+    part = data.get('part')  # Get the part (1=states, 2=capitals)
 
     # Determine if answer is correct
     is_correct = selected_answer == correct_answer
 
-    # Update geography statistics immediately (no more two-part system)
-    update_geography_stats(geography_id, is_correct)
+    # Update geography statistics for the specific part
+    update_geography_stats(geography_id, part, is_correct)
 
     # Return success
+    return jsonify({
+        'success': True,
+        'is_correct': is_correct
+    })
+
+
+@app.route('/pueblos_answer', methods=['POST'])
+def record_pueblos_answer():
+    """Record the user's answer to a Pueblos Mágicos question."""
+    data = request.get_json()
+
+    selected_answer = data.get('selected_answer')
+    correct_answer = data.get('correct_answer')
+    correct_pueblo_ids = data.get('correct_pueblo_ids')  # Comma-separated string
+
+    # Determine if answer is correct
+    is_correct = selected_answer == correct_answer
+
+    # Parse pueblo IDs (convert from comma-separated string to list of ints)
+    pueblo_ids = [int(pid) for pid in correct_pueblo_ids.split(',') if pid]
+
+    # Update pueblos statistics for all credited pueblos
+    update_pueblos_stats(pueblo_ids, is_correct)
+
+    # Return success
+    return jsonify({
+        'success': True,
+        'is_correct': is_correct
+    })
+
+
+@app.route('/unesco_answer', methods=['POST'])
+def record_unesco_answer():
+    """Record the user's answer to a UNESCO Heritage Sites question."""
+    data = request.get_json()
+
+    selected_answer = data.get('selected_answer')
+    correct_answer = data.get('correct_answer')
+    correct_site_ids = data.get('correct_site_ids')
+
+    is_correct = selected_answer == correct_answer
+    site_ids = [int(sid) for sid in correct_site_ids.split(',') if sid]
+    update_unesco_stats(site_ids, is_correct)
+
+    return jsonify({
+        'success': True,
+        'is_correct': is_correct
+    })
+
+
+@app.route('/archaeological_answer', methods=['POST'])
+def record_archaeological_answer():
+    """Record the user's answer to an Archaeological Sites question."""
+    data = request.get_json()
+
+    selected_answer = data.get('selected_answer')
+    correct_answer = data.get('correct_answer')
+    correct_site_ids = data.get('correct_site_ids')
+
+    is_correct = selected_answer == correct_answer
+    site_ids = [int(sid) for sid in correct_site_ids.split(',') if sid]
+    update_archaeological_stats(site_ids, is_correct)
+
     return jsonify({
         'success': True,
         'is_correct': is_correct
@@ -995,11 +1266,11 @@ def show_geography_stats():
     cursor = conn.cursor()
 
     cursor.execute('''
-        SELECT g.id, g.state_name, g.state_number, gs.times_answered, gs.times_correct,
+        SELECT g.id, g.state_name, g.state_number, gs.part, gs.times_answered, gs.times_correct,
                gs.success_rate, gs.weight, gs.is_mastered
         FROM geography_questions g
         JOIN geography_stats gs ON g.id = gs.geography_id
-        ORDER BY gs.weight DESC, g.state_number ASC
+        ORDER BY g.state_number ASC, gs.part ASC
     ''')
 
     stats = cursor.fetchall()
@@ -1007,10 +1278,61 @@ def show_geography_stats():
     # Convert to list of dicts for JSON serialization, including rolling success rate
     stats_list = []
     for stat in stats:
-        # Get rolling window success rate for this state
+        # Get rolling window success rate for this state and part
         cursor.execute('''
             SELECT is_correct FROM geography_attempts
-            WHERE geography_id = ?
+            WHERE geography_id = ? AND part = ?
+            ORDER BY attempt_timestamp DESC
+            LIMIT ?
+        ''', (stat['id'], stat['part'], RECENT_ATTEMPTS_WINDOW))
+
+        recent_attempts = cursor.fetchall()
+        if recent_attempts:
+            recent_correct = sum(1 for attempt in recent_attempts if attempt['is_correct'])
+            recent_total = len(recent_attempts)
+            rolling_success_rate = recent_correct / recent_total
+        else:
+            rolling_success_rate = 0.0
+
+        part_label = "State" if stat['part'] == 1 else "Capital"
+        stats_list.append({
+            'state': f"{stat['state_number']}. {stat['state_name']} ({part_label})",
+            'times_answered': stat['times_answered'],
+            'times_correct': stat['times_correct'],
+            'lifetime_success_rate': f"{stat['success_rate']:.1%}",
+            'rolling_success_rate': f"{rolling_success_rate:.1%}",
+            'weight': f"{stat['weight']:.2f}",
+            'is_mastered': bool(stat['is_mastered'])
+        })
+
+    conn.close()
+
+    return jsonify(stats_list)
+
+
+@app.route('/pueblos_stats')
+def show_pueblos_stats():
+    """Show Pueblos Mágicos learning statistics."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT p.id, p.pueblo_name, p.state_name, ps.times_answered, ps.times_correct,
+               ps.success_rate, ps.weight, ps.is_mastered
+        FROM pueblos_magicos p
+        JOIN pueblos_stats ps ON p.id = ps.pueblo_id
+        ORDER BY ps.weight DESC, p.state_name ASC, p.pueblo_name ASC
+    ''')
+
+    stats = cursor.fetchall()
+
+    # Convert to list of dicts for JSON serialization, including rolling success rate
+    stats_list = []
+    for stat in stats:
+        # Get rolling window success rate for this pueblo
+        cursor.execute('''
+            SELECT is_correct FROM pueblos_attempts
+            WHERE pueblo_id = ?
             ORDER BY attempt_timestamp DESC
             LIMIT ?
         ''', (stat['id'], RECENT_ATTEMPTS_WINDOW))
@@ -1024,7 +1346,7 @@ def show_geography_stats():
             rolling_success_rate = 0.0
 
         stats_list.append({
-            'state': f"{stat['state_number']}. {stat['state_name']}",
+            'pueblo': f"{stat['pueblo_name']} ({stat['state_name']})",
             'times_answered': stat['times_answered'],
             'times_correct': stat['times_correct'],
             'lifetime_success_rate': f"{stat['success_rate']:.1%}",
@@ -1036,6 +1358,430 @@ def show_geography_stats():
     conn.close()
 
     return jsonify(stats_list)
+
+
+# --- Pueblos Mágicos Functions ---
+def get_rolling_success_rate_pueblos(pueblo_id, cursor, window_size=RECENT_ATTEMPTS_WINDOW):
+    """Calculate success rate based on the last N attempts for pueblos questions."""
+    cursor.execute('''
+        SELECT is_correct FROM pueblos_attempts
+        WHERE pueblo_id = ?
+        ORDER BY attempt_timestamp DESC
+        LIMIT ?
+    ''', (pueblo_id, window_size))
+
+    recent_attempts = cursor.fetchall()
+
+    if not recent_attempts:
+        return 0.0, 0
+
+    recent_correct = sum(1 for attempt in recent_attempts if attempt['is_correct'])
+    recent_total = len(recent_attempts)
+
+    return recent_correct / recent_total, recent_total
+
+
+def is_pueblo_mastered(pueblo_id, cursor):
+    """Check if a pueblo is mastered (80%+ rolling success rate, 3+ attempts)."""
+    rolling_success_rate, attempts = get_rolling_success_rate_pueblos(pueblo_id, cursor)
+    return attempts >= 3 and rolling_success_rate >= 0.8
+
+
+def update_pueblos_stats(pueblo_ids, is_correct):
+    """
+    Update statistics for pueblo(s) after being answered.
+    pueblo_ids can be a single ID or a list of IDs (for Mode 2).
+
+    Simplified linear weight system:
+    - Correct answer: reset these pueblos to 0.0, increment all others in same category by 0.1
+    - Incorrect answer: keep current weight (accumulates through other questions)
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Ensure pueblo_ids is a list
+    if not isinstance(pueblo_ids, list):
+        pueblo_ids = [pueblo_ids]
+
+    # Record the individual attempt for each pueblo
+    for pueblo_id in pueblo_ids:
+        cursor.execute('''
+            INSERT INTO pueblos_attempts (pueblo_id, is_correct)
+            VALUES (?, ?)
+        ''', (pueblo_id, is_correct))
+
+        # Get current stats (for total tracking)
+        cursor.execute('''
+            SELECT times_answered, times_correct FROM pueblos_stats
+            WHERE pueblo_id = ?
+        ''', (pueblo_id,))
+
+        result = cursor.fetchone()
+        times_answered = result['times_answered'] + 1
+        times_correct = result['times_correct'] + (1 if is_correct else 0)
+
+        # Calculate lifetime success rate (for display purposes)
+        lifetime_success_rate = times_correct / times_answered if times_answered > 0 else 0.0
+
+        # Determine if this pueblo is mastered (for category separation)
+        is_mastered = is_pueblo_mastered(pueblo_id, cursor)
+        is_mastered_int = 1 if is_mastered else 0
+
+        if is_correct:
+            # Reset this pueblo's weight to 0.0
+            weight = 0.0
+
+            # Increment all OTHER pueblos in the same category by 0.1
+            # Category = mastered vs unmastered
+            cursor.execute('''
+                UPDATE pueblos_stats
+                SET weight = weight + ?
+                WHERE pueblo_id IN (
+                    SELECT id FROM pueblos_magicos WHERE id != ?
+                )
+                AND is_mastered = ?
+            ''', (WEIGHT_INCREMENT, pueblo_id, is_mastered_int))
+        else:
+            # Keep current weight (it will accumulate as other pueblos are answered correctly)
+            cursor.execute('SELECT weight FROM pueblos_stats WHERE pueblo_id = ?', (pueblo_id,))
+            current_weight = cursor.fetchone()['weight']
+            weight = current_weight
+
+        # Update stats (store lifetime success rate, weight, and mastery status)
+        cursor.execute('''
+            UPDATE pueblos_stats
+            SET times_answered = ?, times_correct = ?, success_rate = ?, weight = ?, is_mastered = ?
+            WHERE pueblo_id = ?
+        ''', (times_answered, times_correct, lifetime_success_rate, weight, is_mastered_int, pueblo_id))
+
+    conn.commit()
+    conn.close()
+
+
+def get_weighted_pueblo_question(exclude_pueblo_id=None):
+    """Select a pueblo using 70/30 strategy: 70% unmastered, 30% mastered."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get all pueblos with their stats
+    cursor.execute('''
+        SELECT p.id, p.pueblo_name, p.state_name, ps.weight
+        FROM pueblos_magicos p
+        JOIN pueblos_stats ps ON p.id = ps.pueblo_id
+    ''')
+
+    pueblos = cursor.fetchall()
+
+    # Filter out the excluded pueblo if specified
+    if exclude_pueblo_id is not None:
+        pueblos = [p for p in pueblos if p['id'] != exclude_pueblo_id]
+
+    if not pueblos:
+        conn.close()
+        return None
+
+    # Separate into mastered and unmastered
+    unmastered = [p for p in pueblos if not is_pueblo_mastered(p['id'], cursor)]
+    mastered = [p for p in pueblos if is_pueblo_mastered(p['id'], cursor)]
+
+    # 70/30 selection strategy
+    if random.random() < 0.7:
+        # 70% chance: Select from unmastered pueblos
+        if unmastered:
+            weights = [p['weight'] for p in unmastered]
+            if sum(weights) == 0:
+                selected = random.choice(unmastered)
+            else:
+                selected = random.choices(unmastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+        # Fallback to mastered if no unmastered pueblos
+        if mastered:
+            weights = [p['weight'] for p in mastered]
+            if sum(weights) == 0:
+                selected = random.choice(mastered)
+            else:
+                selected = random.choices(mastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+    else:
+        # 30% chance: Select from mastered pueblos
+        if mastered:
+            weights = [p['weight'] for p in mastered]
+            if sum(weights) == 0:
+                selected = random.choice(mastered)
+            else:
+                selected = random.choices(mastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+        # Fallback to unmastered if no mastered pueblos
+        if unmastered:
+            weights = [p['weight'] for p in unmastered]
+            if sum(weights) == 0:
+                selected = random.choice(unmastered)
+            else:
+                selected = random.choices(unmastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+
+    conn.close()
+    return None
+
+
+# --- UNESCO Heritage Functions ---
+def get_rolling_success_rate_unesco(site_id, cursor, window_size=RECENT_ATTEMPTS_WINDOW):
+    """Calculate success rate based on the last N attempts for UNESCO sites."""
+    cursor.execute('''
+        SELECT is_correct FROM unesco_attempts
+        WHERE site_id = ?
+        ORDER BY attempt_timestamp DESC
+        LIMIT ?
+    ''', (site_id, window_size))
+
+    recent_attempts = cursor.fetchall()
+
+    if not recent_attempts:
+        return 0.0, 0
+
+    recent_correct = sum(1 for attempt in recent_attempts if attempt['is_correct'])
+    recent_total = len(recent_attempts)
+
+    return recent_correct / recent_total, recent_total
+
+
+def is_unesco_mastered(site_id, cursor):
+    """Check if a UNESCO site is mastered (80%+ rolling success rate, 3+ attempts)."""
+    rolling_success_rate, attempts = get_rolling_success_rate_unesco(site_id, cursor)
+    return attempts >= 3 and rolling_success_rate >= 0.8
+
+
+def update_unesco_stats(site_ids, is_correct):
+    """Update statistics for UNESCO site(s) after being answered."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if not isinstance(site_ids, list):
+        site_ids = [site_ids]
+
+    for site_id in site_ids:
+        cursor.execute('''
+            INSERT INTO unesco_attempts (site_id, is_correct)
+            VALUES (?, ?)
+        ''', (site_id, is_correct))
+
+        cursor.execute('''
+            SELECT times_answered, times_correct FROM unesco_stats
+            WHERE site_id = ?
+        ''', (site_id,))
+
+        result = cursor.fetchone()
+        times_answered = result['times_answered'] + 1
+        times_correct = result['times_correct'] + (1 if is_correct else 0)
+        lifetime_success_rate = times_correct / times_answered if times_answered > 0 else 0.0
+        is_mastered = is_unesco_mastered(site_id, cursor)
+        is_mastered_int = 1 if is_mastered else 0
+
+        if is_correct:
+            weight = 0.0
+            cursor.execute('''
+                UPDATE unesco_stats
+                SET weight = weight + ?
+                WHERE site_id IN (
+                    SELECT id FROM unesco_sites WHERE id != ?
+                )
+                AND is_mastered = ?
+            ''', (WEIGHT_INCREMENT, site_id, is_mastered_int))
+        else:
+            cursor.execute('SELECT weight FROM unesco_stats WHERE site_id = ?', (site_id,))
+            current_weight = cursor.fetchone()['weight']
+            weight = current_weight
+
+        cursor.execute('''
+            UPDATE unesco_stats
+            SET times_answered = ?, times_correct = ?, success_rate = ?, weight = ?, is_mastered = ?
+            WHERE site_id = ?
+        ''', (times_answered, times_correct, lifetime_success_rate, weight, is_mastered_int, site_id))
+
+    conn.commit()
+    conn.close()
+
+
+def get_weighted_unesco_question(exclude_site_id=None):
+    """Select a UNESCO site using 70/30 strategy: 70% unmastered, 30% mastered."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT u.id, u.site_name, u.state_name, us.weight
+        FROM unesco_sites u
+        JOIN unesco_stats us ON u.id = us.site_id
+    ''')
+
+    sites = cursor.fetchall()
+
+    if exclude_site_id is not None:
+        sites = [s for s in sites if s['id'] != exclude_site_id]
+
+    if not sites:
+        conn.close()
+        return None
+
+    unmastered = [s for s in sites if not is_unesco_mastered(s['id'], cursor)]
+    mastered = [s for s in sites if is_unesco_mastered(s['id'], cursor)]
+
+    if random.random() < 0.7:
+        if unmastered:
+            weights = [s['weight'] for s in unmastered]
+            selected = random.choice(unmastered) if sum(weights) == 0 else random.choices(unmastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+        if mastered:
+            weights = [s['weight'] for s in mastered]
+            selected = random.choice(mastered) if sum(weights) == 0 else random.choices(mastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+    else:
+        if mastered:
+            weights = [s['weight'] for s in mastered]
+            selected = random.choice(mastered) if sum(weights) == 0 else random.choices(mastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+        if unmastered:
+            weights = [s['weight'] for s in unmastered]
+            selected = random.choice(unmastered) if sum(weights) == 0 else random.choices(unmastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+
+    conn.close()
+    return None
+
+
+# --- Archaeological Sites Functions ---
+def get_rolling_success_rate_archaeological(site_id, cursor, window_size=RECENT_ATTEMPTS_WINDOW):
+    """Calculate success rate based on the last N attempts for archaeological sites."""
+    cursor.execute('''
+        SELECT is_correct FROM archaeological_attempts
+        WHERE site_id = ?
+        ORDER BY attempt_timestamp DESC
+        LIMIT ?
+    ''', (site_id, window_size))
+
+    recent_attempts = cursor.fetchall()
+
+    if not recent_attempts:
+        return 0.0, 0
+
+    recent_correct = sum(1 for attempt in recent_attempts if attempt['is_correct'])
+    recent_total = len(recent_attempts)
+
+    return recent_correct / recent_total, recent_total
+
+
+def is_archaeological_mastered(site_id, cursor):
+    """Check if an archaeological site is mastered (80%+ rolling success rate, 3+ attempts)."""
+    rolling_success_rate, attempts = get_rolling_success_rate_archaeological(site_id, cursor)
+    return attempts >= 3 and rolling_success_rate >= 0.8
+
+
+def update_archaeological_stats(site_ids, is_correct):
+    """Update statistics for archaeological site(s) after being answered."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if not isinstance(site_ids, list):
+        site_ids = [site_ids]
+
+    for site_id in site_ids:
+        cursor.execute('''
+            INSERT INTO archaeological_attempts (site_id, is_correct)
+            VALUES (?, ?)
+        ''', (site_id, is_correct))
+
+        cursor.execute('''
+            SELECT times_answered, times_correct FROM archaeological_stats
+            WHERE site_id = ?
+        ''', (site_id,))
+
+        result = cursor.fetchone()
+        times_answered = result['times_answered'] + 1
+        times_correct = result['times_correct'] + (1 if is_correct else 0)
+        lifetime_success_rate = times_correct / times_answered if times_answered > 0 else 0.0
+        is_mastered = is_archaeological_mastered(site_id, cursor)
+        is_mastered_int = 1 if is_mastered else 0
+
+        if is_correct:
+            weight = 0.0
+            cursor.execute('''
+                UPDATE archaeological_stats
+                SET weight = weight + ?
+                WHERE site_id IN (
+                    SELECT id FROM archaeological_sites WHERE id != ?
+                )
+                AND is_mastered = ?
+            ''', (WEIGHT_INCREMENT, site_id, is_mastered_int))
+        else:
+            cursor.execute('SELECT weight FROM archaeological_stats WHERE site_id = ?', (site_id,))
+            current_weight = cursor.fetchone()['weight']
+            weight = current_weight
+
+        cursor.execute('''
+            UPDATE archaeological_stats
+            SET times_answered = ?, times_correct = ?, success_rate = ?, weight = ?, is_mastered = ?
+            WHERE site_id = ?
+        ''', (times_answered, times_correct, lifetime_success_rate, weight, is_mastered_int, site_id))
+
+    conn.commit()
+    conn.close()
+
+
+def get_weighted_archaeological_question(exclude_site_id=None):
+    """Select an archaeological site using 70/30 strategy: 70% unmastered, 30% mastered."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT a.id, a.site_name, a.state_name, acs.weight
+        FROM archaeological_sites a
+        JOIN archaeological_stats acs ON a.id = acs.site_id
+    ''')
+
+    sites = cursor.fetchall()
+
+    if exclude_site_id is not None:
+        sites = [s for s in sites if s['id'] != exclude_site_id]
+
+    if not sites:
+        conn.close()
+        return None
+
+    unmastered = [s for s in sites if not is_archaeological_mastered(s['id'], cursor)]
+    mastered = [s for s in sites if is_archaeological_mastered(s['id'], cursor)]
+
+    if random.random() < 0.7:
+        if unmastered:
+            weights = [s['weight'] for s in unmastered]
+            selected = random.choice(unmastered) if sum(weights) == 0 else random.choices(unmastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+        if mastered:
+            weights = [s['weight'] for s in mastered]
+            selected = random.choice(mastered) if sum(weights) == 0 else random.choices(mastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+    else:
+        if mastered:
+            weights = [s['weight'] for s in mastered]
+            selected = random.choice(mastered) if sum(weights) == 0 else random.choices(mastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+        if unmastered:
+            weights = [s['weight'] for s in unmastered]
+            selected = random.choice(unmastered) if sum(weights) == 0 else random.choices(unmastered, weights=weights, k=1)[0]
+            conn.close()
+            return dict(selected)
+
+    conn.close()
+    return None
 
 
 # --- Multiline Quiz Functions ---
