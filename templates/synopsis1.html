@@ -4,29 +4,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Synopsis - Ancient Mexico</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/synopsis.css') }}">
 </head>
 <body>
-    <!-- Menu Bar -->
+    <!-- Main Menu Bar -->
     <div class="menu-bar">
         <div class="menu-left">
             <a href="/synopsis" class="menu-nav-link active">📖 Sinopsis</a>
             <span class="menu-separator">|</span>
             <a href="/" class="menu-nav-link">📝 Preguntas</a>
             <span class="menu-separator">|</span>
-            <a href="/geography" class="menu-nav-link">🗺️ Geografía</a>
-            <span class="menu-separator">|</span>
-            <a href="/multiline" class="menu-nav-link">📋 Listas</a>
+            <a href="/geography_states" class="menu-nav-link">🗺️ Geografía</a>
         </div>
-        <div class="menu-right">
-            <a href="/synopsis1" class="menu-link active">1. Ancient</a>
-            <a href="/synopsis2" class="menu-link">2. Colonial</a>
-            <a href="/synopsis3" class="menu-link">3. Bourbon</a>
-            <a href="/synopsis4" class="menu-link">4. Independence</a>
-            <a href="/synopsis5" class="menu-link">5. Porfiriato</a>
-            <a href="/synopsis6" class="menu-link">6. Revolution</a>
-            <a href="/synopsis7" class="menu-link">7. Modern</a>
-        </div>
+    </div>
+
+    <!-- Sub Menu Bar (Sinopsis Section) -->
+    <div class="submenu-bar">
+        <a href="/synopsis1" class="submenu-nav-link active">1. Antiguo</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis2" class="submenu-nav-link">2. Colonial</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis3" class="submenu-nav-link">3. Reformas Borbónicas</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis4" class="submenu-nav-link">4. Independencia</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis5" class="submenu-nav-link">5. Porfiriato</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis6" class="submenu-nav-link">6. Revolución</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis7" class="submenu-nav-link">7. Moderno</a>
     </div>
 
     <div class="content-container">

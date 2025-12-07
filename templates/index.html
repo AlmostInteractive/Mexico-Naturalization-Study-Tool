@@ -7,32 +7,11 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Examen de Ciudadanía Mexicana - Práctica</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f0f2f5;
-            color: #333;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        .quiz-container {
-            background-color: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 900px;
-            padding: 30px;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-        }
+        /* Quiz-specific styles */
         h1 {
-            color: #005a31; /* Mexican flag green */
+            color: #005a31;
             margin-bottom: 25px;
         }
         .question {
@@ -59,125 +38,38 @@
             border-color: #005a31;
             background-color: #e8f5e9;
         }
-        /* Styles for after an answer is selected */
         .option-btn.correct {
-            background-color: #28a745; /* Green */
+            background-color: #28a745;
             border-color: #28a745;
             color: white;
             font-weight: bold;
         }
         .option-btn.incorrect {
-            background-color: #dc3545; /* Red */
+            background-color: #dc3545;
             border-color: #dc3545;
             color: white;
         }
         .option-btn:disabled {
             cursor: not-allowed;
         }
-        .next-btn {
-            visibility: hidden; /* Hidden but reserves space */
-            margin-top: 25px;
-            background-color: #ce1126; /* Mexican flag red */
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 15px 30px;
-            font-size: 1.1em;
-            font-weight: bold;
-            cursor: pointer;
-            text-decoration: none;
-            flex-shrink: 0;
-            align-self: center;
-        }
-        .menu-bar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background-color: #005a31;
-            color: white;
-            padding: 10px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.9em;
-            z-index: 1000;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .menu-left {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .menu-nav-link {
-            color: white;
-            text-decoration: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            transition: background-color 0.2s;
-        }
-        .menu-nav-link:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
-        .menu-nav-link.active {
-            background-color: rgba(255, 255, 255, 0.2);
-            font-weight: bold;
-        }
-        .menu-separator {
-            color: rgba(255, 255, 255, 0.5);
-            margin: 0 5px;
-        }
-        .menu-right {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        .menu-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .menu-item label {
-            color: white;
-            font-weight: normal;
-        }
-        .menu-item select {
-            padding: 4px 8px;
-            border: none;
-            border-radius: 4px;
-            font-size: 0.9em;
-            background-color: white;
-            color: #333;
-        }
-        .menu-toggle {
-            background: none;
-            border: 2px solid white;
-            color: white;
-            border-radius: 4px;
-            padding: 4px 12px;
-            cursor: pointer;
-            font-size: 0.9em;
-        }
-        .menu-toggle:hover {
-            background-color: rgba(255, 255, 255, 0.1);
+        .next-btn.visible {
+            visibility: visible;
         }
     </style>
 </head>
 <body>
-    <!-- Menu Bar -->
+    <!-- Main Menu Bar -->
     <div class="menu-bar">
         <div class="menu-left">
             <a href="/synopsis" class="menu-nav-link">📖 Sinopsis</a>
             <span class="menu-separator">|</span>
             <a href="/" class="menu-nav-link active">📝 Preguntas</a>
             <span class="menu-separator">|</span>
-            <a href="/geography" class="menu-nav-link">🗺️ Geografía</a>
-            <span class="menu-separator">|</span>
-            <a href="/multiline" class="menu-nav-link">📋 Listas</a>
+            <a href="/geography_states" class="menu-nav-link">🗺️ Geografía</a>
         </div>
         <div class="menu-right">
             <div class="menu-item">
-                <label for="speech-rate">Velocidad de Audio:</label>
+                <label for="speech-rate">Velocidad:</label>
                 <select id="speech-rate">
                     <option value="0.7">Lenta</option>
                     <option value="1.0" selected>Normal</option>
@@ -191,6 +83,13 @@
                 <button id="delete-question-btn" class="menu-toggle" style="background-color: #dc3545; border-color: #dc3545;" title="Eliminar esta pregunta de la base de datos">🗑️ Eliminar</button>
             </div>
         </div>
+    </div>
+
+    <!-- Sub Menu Bar (Preguntas Section) -->
+    <div class="submenu-bar">
+        <a href="/" class="submenu-nav-link active">Opción Múltiple</a>
+        <span class="submenu-separator">|</span>
+        <a href="/multiline" class="submenu-nav-link">Listas</a>
     </div>
 
     <div class="quiz-container">

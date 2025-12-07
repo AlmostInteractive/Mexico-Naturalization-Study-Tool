@@ -486,6 +486,7 @@ CRITICAL REQUIREMENTS:
    - Plausible but clearly incorrect
    - Distinct from each other
    - From the same domain (years with years, names with names, places with places)
+   - In the same format as similar punctuation as the correct answer
 
 3. Use proper Mexican Spanish when appropriate
 

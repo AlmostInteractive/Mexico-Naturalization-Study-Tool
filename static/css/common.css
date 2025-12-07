@@ -12,6 +12,7 @@ body {
     min-height: 100vh;
     margin: 0;
     padding: 20px;
+    padding-top: 100px; /* Account for fixed navigation bars */
     box-sizing: border-box;
 }
 
@@ -180,4 +181,43 @@ h1 {
 
 .menu-toggle:hover {
     background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Sub-Menu Bar Styles */
+.submenu-bar {
+    position: fixed;
+    top: 44px; /* Below main menu */
+    left: 20px; /* Left-aligned with padding */
+    background-color: #005a31; /* Same green as main menu */
+    color: white;
+    padding: 8px 20px;
+    display: inline-flex; /* Only as wide as needed */
+    align-items: center;
+    font-size: 0.85em;
+    z-index: 999;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 0 0 8px 8px; /* Rounded bottom corners */
+}
+
+.submenu-nav-link {
+    color: white;
+    text-decoration: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    margin-right: 5px;
+}
+
+.submenu-nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.submenu-nav-link.active {
+    background-color: rgba(255, 255, 255, 0.25);
+    font-weight: bold;
+}
+
+.submenu-separator {
+    color: rgba(255, 255, 255, 0.4);
+    margin: 0 3px;
 }

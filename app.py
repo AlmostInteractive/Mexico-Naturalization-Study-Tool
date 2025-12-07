@@ -1,7 +1,7 @@
 import sqlite3
 import random
 import secrets
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, redirect
 from weight_calculator import RECENT_ATTEMPTS_WINDOW, get_rolling_success_rate
 
 # Initialize the Flask application
@@ -705,90 +705,16 @@ def get_weighted_geography_question(exclude_geography_id=None):
 
 # --- Geography Routes ---
 @app.route('/geography')
-def geography_quiz():
-    """Display the geography quiz page."""
-    # Check if this is part 2 (capital question)
-    part = request.args.get('part', type=int, default=1)
-    geography_id_param = request.args.get('geography_id', type=int)
+def geography_redirect():
+    """Redirect old geography route to states."""
+    return redirect('/geography_states')
 
-    # If part 2, show capital question
-    if part == 2 and geography_id_param:
-        conn = get_db_connection()
-        cursor = conn.cursor()
 
-        # Get the state info
-        cursor.execute('''
-            SELECT id, state_name, capital
-            FROM geography_questions
-            WHERE id = ?
-        ''', (geography_id_param,))
-        state_data = cursor.fetchone()
-
-        if not state_data:
-            conn.close()
-            return "State not found!", 404
-
-        geography_id = state_data['id']
-        state_name = state_data['state_name']
-        correct_capital = state_data['capital']
-
-        # Get 3-4 random incorrect capitals as distractors
-        # (we might need 4 if we replace one with the state name)
-        cursor.execute('''
-            SELECT capital FROM geography_questions
-            WHERE id != ?
-            ORDER BY RANDOM()
-            LIMIT 4
-        ''', (geography_id,))
-        distractors = [row['capital'] for row in cursor.fetchall()]
-
-        # If the capital doesn't contain the state name, add state name as a distractor
-        if state_name.lower() not in correct_capital.lower():
-            # Replace one of the distractors with the state name
-            distractors = distractors[:2] + [state_name]
-        else:
-            # Use only 3 distractors
-            distractors = distractors[:3]
-
-        # Combine correct answer with distractors and shuffle
-        options = distractors + [correct_capital]
-        random.shuffle(options)
-
-        # Get progress stats (same as part 1)
-        cursor.execute('''
-            SELECT COUNT(*) as total,
-                   SUM(CASE WHEN times_answered >= 3 THEN 1 ELSE 0 END) as answered_enough,
-                   COUNT(CASE WHEN times_answered >= 3 THEN 1 END) as answered_count
-            FROM geography_stats
-        ''')
-        stats = cursor.fetchone()
-
-        # Count mastered questions
-        cursor.execute('SELECT id FROM geography_questions')
-        all_geo_ids = cursor.fetchall()
-        mastered_count = sum(1 for geo_row in all_geo_ids if is_geography_mastered(geo_row['id'], cursor))
-
-        conn.close()
-
-        return render_template(
-            'geography.html',
-            part=2,
-            geography_id=geography_id,
-            question_text=f"¿Cuál es la capital de {state_name}?",
-            correct_answer=correct_capital,
-            state_name=state_name,
-            options=options,
-            mode=1,  # Always mode 1 (multiple choice) for capital questions
-            state_number=None,
-            correct_state=None,
-            total_states=stats['total'],
-            answered_count=stats['answered_count'],
-            mastered_count=mastered_count
-        )
-
-    # Part 1: State identification question
+@app.route('/geography_states')
+def geography_states():
+    """Display the states identification quiz."""
     # Get previous question ID from session to avoid repeating
-    prev_geography_id = session.get('prev_geography_id')
+    prev_geography_id = session.get('prev_geography_states_id')
 
     # Select a geography question using weighted probability
     geography_data = get_weighted_geography_question(exclude_geography_id=prev_geography_id)
@@ -801,7 +727,7 @@ def geography_quiz():
     correct_state = geography_data['state_name']
 
     # Store this geography ID in session for next request
-    session['prev_geography_id'] = geography_id
+    session['prev_geography_states_id'] = geography_id
 
     # Randomly select mode (1 or 2)
     mode = random.randint(1, 2)
@@ -844,6 +770,7 @@ def geography_quiz():
 
     return render_template(
         'geography.html',
+        section='states',
         part=1,
         geography_id=geography_id,
         state_number=state_number,
@@ -852,9 +779,164 @@ def geography_quiz():
         options=options,
         mode=mode,
         question_text=None,
+        state_name=None,
         total_states=stats['total'],
         answered_count=stats['answered_count'],
         mastered_count=mastered_count
+    )
+
+
+@app.route('/geography_capitals')
+def geography_capitals():
+    """Display the capitals quiz."""
+    # Get previous question ID from session to avoid repeating
+    prev_geography_id = session.get('prev_geography_capitals_id')
+
+    # Select a geography question using weighted probability
+    geography_data = get_weighted_geography_question(exclude_geography_id=prev_geography_id)
+
+    if not geography_data:
+        return "No geography questions available!", 500
+
+    geography_id = geography_data['id']
+
+    # Store this geography ID in session for next request
+    session['prev_geography_capitals_id'] = geography_id
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get the state info
+    cursor.execute('''
+        SELECT id, state_name, capital
+        FROM geography_questions
+        WHERE id = ?
+    ''', (geography_id,))
+    state_data = cursor.fetchone()
+
+    if not state_data:
+        conn.close()
+        return "State not found!", 404
+
+    state_name = state_data['state_name']
+    correct_capital = state_data['capital']
+
+    # Get 3-4 random incorrect capitals as distractors
+    # (we might need 4 if we replace one with the state name)
+    cursor.execute('''
+        SELECT capital FROM geography_questions
+        WHERE id != ?
+        ORDER BY RANDOM()
+        LIMIT 4
+    ''', (geography_id,))
+    distractors = [row['capital'] for row in cursor.fetchall()]
+
+    # If the capital doesn't contain the state name, add state name as a distractor
+    if state_name.lower() not in correct_capital.lower():
+        # Replace one of the distractors with the state name
+        distractors = distractors[:2] + [state_name]
+    else:
+        # Use only 3 distractors
+        distractors = distractors[:3]
+
+    # Combine correct answer with distractors and shuffle
+    options = distractors + [correct_capital]
+    random.shuffle(options)
+
+    # Get progress stats
+    cursor.execute('''
+        SELECT COUNT(*) as total,
+               SUM(CASE WHEN times_answered >= 3 THEN 1 ELSE 0 END) as answered_enough,
+               COUNT(CASE WHEN times_answered >= 3 THEN 1 END) as answered_count
+        FROM geography_stats
+    ''')
+    stats = cursor.fetchone()
+
+    # Count mastered questions
+    cursor.execute('SELECT id FROM geography_questions')
+    all_geo_ids = cursor.fetchall()
+    mastered_count = sum(1 for geo_row in all_geo_ids if is_geography_mastered(geo_row['id'], cursor))
+
+    conn.close()
+
+    return render_template(
+        'geography.html',
+        section='capitals',
+        part=2,
+        geography_id=geography_id,
+        question_text=f"¿Cuál es la capital de {state_name}?",
+        correct_answer=correct_capital,
+        state_name=state_name,
+        options=options,
+        mode=1,  # Always mode 1 (multiple choice) for capital questions
+        state_number=None,
+        correct_state=None,
+        total_states=stats['total'],
+        answered_count=stats['answered_count'],
+        mastered_count=mastered_count
+    )
+
+
+@app.route('/geography_pueblos')
+def geography_pueblos():
+    """Placeholder for Pueblos Mágicos quiz (coming soon)."""
+    return render_template(
+        'geography.html',
+        section='pueblos',
+        part=3,
+        geography_id=None,
+        question_text="Pueblos Mágicos - Próximamente",
+        correct_answer="",
+        state_name="",
+        options=[],
+        mode=1,
+        state_number=None,
+        correct_state=None,
+        total_states=0,
+        answered_count=0,
+        mastered_count=0
+    )
+
+
+@app.route('/geography_unesco')
+def geography_unesco():
+    """Placeholder for UNESCO Heritage Sites quiz (coming soon)."""
+    return render_template(
+        'geography.html',
+        section='unesco',
+        part=4,
+        geography_id=None,
+        question_text="Sitios Patrimonio UNESCO - Próximamente",
+        correct_answer="",
+        state_name="",
+        options=[],
+        mode=1,
+        state_number=None,
+        correct_state=None,
+        total_states=0,
+        answered_count=0,
+        mastered_count=0
+    )
+
+
+@app.route('/geography_archaeological')
+def geography_archaeological():
+    """Placeholder for Archaeological Sites quiz (coming soon)."""
+    return render_template(
+        'geography.html',
+        section='archaeological',
+        part=5,
+        geography_id=None,
+        question_text="Zonas Arqueológicos - Próximamente",
+        correct_answer="",
+        state_name="",
+        options=[],
+        mode=1,
+        state_number=None,
+        correct_state=None,
+        total_states=0,
+        answered_count=0,
+        mastered_count=0
     )
 
 
@@ -866,48 +948,18 @@ def record_geography_answer():
     geography_id = data.get('geography_id')
     selected_answer = data.get('selected_answer')
     correct_answer = data.get('correct_answer')
-    part = data.get('part', 1)
 
     # Determine if answer is correct
     is_correct = selected_answer == correct_answer
 
-    if part == 1:
-        # Part 1: State identification
-        if is_correct:
-            # Don't update geography_stats yet - wait for Part 2
-            # Only proceed to Part 2 if Part 1 is correct
-            return jsonify({
-                'success': True,
-                'is_correct': is_correct,
-                'show_capital': True,
-                'geography_id': geography_id
-            })
-        else:
-            # Part 1 incorrect: Mark the entire question as incorrect
-            update_geography_stats(geography_id, False)
+    # Update geography statistics immediately (no more two-part system)
+    update_geography_stats(geography_id, is_correct)
 
-            # Skip Part 2, move to next question
-            return jsonify({
-                'success': True,
-                'is_correct': False,
-                'show_capital': False,
-                'geography_id': geography_id
-            })
-    else:
-        # Part 2: Capital question
-        # Since we only reach Part 2 if Part 1 was correct,
-        # the Part 2 result determines the overall question result
-
-        # Update geography statistics with Part 2 result
-        # (represents combined Part 1 + Part 2 correctness)
-        update_geography_stats(geography_id, is_correct)
-
-        # Always move to next question after part 2
-        return jsonify({
-            'success': True,
-            'is_correct': is_correct,
-            'show_capital': False
-        })
+    # Return success
+    return jsonify({
+        'success': True,
+        'is_correct': is_correct
+    })
 
 
 @app.route('/geographyDebug')

@@ -7,30 +7,13 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Geografía de México - Práctica</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f0f2f5;
-            color: #333;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-        }
+        /* Geography quiz-specific styles */
         .quiz-container {
-            background-color: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            width: 100%;
             max-width: 1200px;
             max-height: calc(100vh - 80px);
             padding: 20px;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
         }
         h1 {
             color: #005a31;
@@ -86,13 +69,11 @@
             max-width: 100%;
             max-height: calc(100vh - 200px);
         }
-        /* Mode 1: Highlighted state styling */
         .map-container svg path.highlighted {
             fill: lightblue !important;
             stroke: blue !important;
             stroke-width: 3 !important;
         }
-        /* Mode 2: Hoverable paths */
         .map-container.mode-2 svg path {
             cursor: pointer;
         }
@@ -101,13 +82,11 @@
             stroke: blue !important;
             stroke-width: 3 !important;
         }
-        /* Mode 2: Correct selection */
         .map-container svg path.correct {
             fill: #90EE90 !important;
             stroke: #28a745 !important;
             stroke-width: 3 !important;
         }
-        /* Mode 2: Incorrect selection */
         .map-container svg path.incorrect {
             fill: #FFB6C1 !important;
             stroke: #dc3545 !important;
@@ -150,109 +129,24 @@
             cursor: not-allowed;
         }
         .next-btn {
-            visibility: hidden; /* Hidden but reserves space */
+            visibility: hidden;
             margin-top: 15px;
-            background-color: #ce1126;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 25px;
-            font-size: 1em;
-            font-weight: bold;
-            cursor: pointer;
-            text-decoration: none;
-            flex-shrink: 0;
-            align-self: center;
-        }
-        .menu-bar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background-color: #005a31;
-            color: white;
-            padding: 10px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.9em;
-            z-index: 1000;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .menu-left {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .menu-nav-link {
-            color: white;
-            text-decoration: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            transition: background-color 0.2s;
-        }
-        .menu-nav-link:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
-        .menu-nav-link.active {
-            background-color: rgba(255, 255, 255, 0.2);
-            font-weight: bold;
-        }
-        .menu-separator {
-            color: rgba(255, 255, 255, 0.5);
-            margin: 0 5px;
-        }
-        .menu-right {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        .menu-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .menu-item label {
-            color: white;
-            font-weight: normal;
-        }
-        .menu-item select {
-            padding: 4px 8px;
-            border: none;
-            border-radius: 4px;
-            font-size: 0.9em;
-            background-color: white;
-        }
-        .menu-toggle {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 4px;
-            background-color: rgba(255, 255, 255, 0.2);
-            color: white;
-            cursor: pointer;
-            font-size: 0.9em;
-            transition: background-color 0.2s;
-        }
-        .menu-toggle:hover {
-            background-color: rgba(255, 255, 255, 0.3);
         }
     </style>
 </head>
 <body>
-    <!-- Menu Bar -->
+    <!-- Main Menu Bar -->
     <div class="menu-bar">
         <div class="menu-left">
             <a href="/synopsis" class="menu-nav-link">📖 Sinopsis</a>
             <span class="menu-separator">|</span>
             <a href="/" class="menu-nav-link">📝 Preguntas</a>
             <span class="menu-separator">|</span>
-            <a href="/geography" class="menu-nav-link active">🗺️ Geografía</a>
-            <span class="menu-separator">|</span>
-            <a href="/multiline" class="menu-nav-link">📋 Listas</a>
+            <a href="/geography_states" class="menu-nav-link active">🗺️ Geografía</a>
         </div>
         <div class="menu-right">
             <div class="menu-item">
-                <label for="speech-rate">Velocidad de Audio:</label>
+                <label for="speech-rate">Velocidad:</label>
                 <select id="speech-rate">
                     <option value="0.7">Lento</option>
                     <option value="1.0" selected>Normal</option>
@@ -263,8 +157,21 @@
         </div>
     </div>
 
+    <!-- Sub Menu Bar (Geografía Section) -->
+    <div class="submenu-bar">
+        <a href="/geography_states" class="submenu-nav-link {% if section == 'states' %}active{% endif %}">Estados</a>
+        <span class="submenu-separator">|</span>
+        <a href="/geography_capitals" class="submenu-nav-link {% if section == 'capitals' %}active{% endif %}">Capitales</a>
+        <span class="submenu-separator">|</span>
+        <a href="/geography_pueblos" class="submenu-nav-link {% if section == 'pueblos' %}active{% endif %}">Pueblos Mágicos</a>
+        <span class="submenu-separator">|</span>
+        <a href="/geography_unesco" class="submenu-nav-link {% if section == 'unesco' %}active{% endif %}">UNESCO Patrimonio</a>
+        <span class="submenu-separator">|</span>
+        <a href="/geography_archaeological" class="submenu-nav-link {% if section == 'archaeological' %}active{% endif %}">Zonas Arqueológicos</a>
+    </div>
+
     <div class="quiz-container">
-        <h1>Geografía de México</h1>
+        <h1>{% if section == 'states' %}Estados de México{% elif section == 'capitals' %}Capitales de México{% elif section == 'pueblos' %}Pueblos Mágicos{% else %}Geografía de México{% endif %}</h1>
 
         <!-- Progress indicator -->
         <div class="progress-container">
@@ -303,6 +210,7 @@
         <div id="geography-id" style="display: none;">{{ geography_id }}</div>
         <div id="state-number" style="display: none;">{{ state_number if state_number else '' }}</div>
         <div id="mode" style="display: none;">{{ mode }}</div>
+        <div id="section" style="display: none;">{{ section if section else '' }}</div>
         <div id="part" style="display: none;">{{ part }}</div>
 
         <a href="#" id="next-btn" class="next-btn">Siguiente Pregunta</a>
@@ -324,9 +232,18 @@
             const stateNumber = stateNumberText ? parseInt(stateNumberText) : null;
             const mode = parseInt(document.getElementById('mode').textContent.trim());
             const part = parseInt(document.getElementById('part').textContent.trim());
+            const section = document.getElementById('section').textContent.trim();
             const nextButton = document.getElementById('next-btn');
 
-            // Next button href is updated dynamically after answering based on whether to show capital
+            // Determine next URL based on section
+            const nextUrl = section === 'states' ? '/geography_states' :
+                           section === 'capitals' ? '/geography_capitals' : '/geography_states';
+
+            // Add click handler to next button
+            nextButton.addEventListener('click', (event) => {
+                event.preventDefault();
+                window.location.href = nextUrl;
+            });
 
             // Answer selection handling (for both Mode 1 buttons and Part 2 capital buttons)
             if (optionsContainer) {
@@ -391,13 +308,6 @@
                         })
                         .then(response => response.json())
                         .then(data => {
-                            // Update next button href based on whether we should show capital
-                            if (data.show_capital) {
-                                nextButton.href = '/geography?part=2&geography_id=' + geographyId;
-                            } else {
-                                nextButton.href = '/geography';
-                            }
-
                             // Show next button
                             nextButton.style.visibility = 'visible';
 
@@ -406,7 +316,7 @@
                                 speakText(speechText, () => {
                                     // Auto-advance after speech completes
                                     setTimeout(() => {
-                                        window.location.href = nextButton.href;
+                                        window.location.href = nextUrl;
                                     }, 1000); // 1 second delay after speech
                                 });
                             }, 300);
@@ -577,13 +487,6 @@
                                 })
                                 .then(response => response.json())
                                 .then(data => {
-                                    // Update next button href based on whether we should show capital
-                                    if (data.show_capital) {
-                                        nextButton.href = '/geography?part=2&geography_id=' + geographyId;
-                                    } else {
-                                        nextButton.href = '/geography';
-                                    }
-
                                     // Show next button
                                     nextButton.style.visibility = 'visible';
 
@@ -595,7 +498,7 @@
                                         speakText(speechText, () => {
                                             // Auto-advance after speech completes
                                             setTimeout(() => {
-                                                window.location.href = nextButton.href;
+                                                window.location.href = nextUrl;
                                             }, 1000); // 1 second delay after speech
                                         });
                                     }, 300);
