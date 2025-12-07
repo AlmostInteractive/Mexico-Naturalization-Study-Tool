@@ -2284,6 +2284,12 @@ def synopsis_geography():
     # Get all states with capitals
     states = conn.execute('SELECT state_name, capital FROM geography_questions ORDER BY state_name').fetchall()
 
+    # Calculate counts (counting multi-state sites only once)
+    state_count = conn.execute('SELECT COUNT(*) FROM geography_questions').fetchone()[0]
+    pueblo_count = conn.execute('SELECT COUNT(DISTINCT pueblo_name) FROM pueblos_magicos').fetchone()[0]
+    unesco_count = conn.execute('SELECT COUNT(DISTINCT site_name) FROM unesco_sites').fetchone()[0]
+    arch_count = conn.execute('SELECT COUNT(DISTINCT site_name) FROM archaeological_sites').fetchone()[0]
+
     # Find multi-state UNESCO sites
     unesco_multi_state = conn.execute('''
         SELECT site_name, GROUP_CONCAT(state_name, ', ') as states, COUNT(*) as state_count
@@ -2362,7 +2368,11 @@ def synopsis_geography():
                          unesco_superscripts=unesco_superscripts,
                          arch_superscripts=arch_superscripts,
                          unesco_legend=unesco_legend,
-                         arch_legend=arch_legend)
+                         arch_legend=arch_legend,
+                         state_count=state_count,
+                         pueblo_count=pueblo_count,
+                         unesco_count=unesco_count,
+                         arch_count=arch_count)
 
 
 # --- Main execution block ---
