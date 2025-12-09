@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synopsis - Atlas de México</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/synopsis.css') }}">
+</head>
+<body>
+    <!-- Main Menu Bar -->
+    <div class="menu-bar">
+        <div class="menu-left">
+            <a href="/synopsis" class="menu-nav-link">📖 Sinopsis</a>
+            <span class="menu-separator">|</span>
+            <a href="/" class="menu-nav-link">📝 Preguntas</a>
+            <span class="menu-separator">|</span>
+            <a href="/geography_states" class="menu-nav-link">🗺️ Geografía</a>
+        </div>
+    </div>
+
+    <!-- Sub Menu Bar (Sinopsis Section) -->
+    <div class="submenu-bar">
+        <a href="/synopsis_nmhm" class="submenu-nav-link">Nueva Historia Mínima de México</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis_atlas" class="submenu-nav-link active">Atlas de México</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis_geography" class="submenu-nav-link">Geografía</a>
+    </div>
+
+    <!-- Third Level Menu (Atlas Chapters) -->
+    <div class="submenu-bar">
+        <a href="/synopsis_atlas1" class="submenu-nav-link">1. Medio Físico</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis_atlas2" class="submenu-nav-link">2. Sociedad</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis_atlas3" class="submenu-nav-link">3. Infraestructura</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis_atlas4" class="submenu-nav-link">4. Economía</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis_atlas5" class="submenu-nav-link">5. Entidades Federativas</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis_atlas6" class="submenu-nav-link">6. Geography Reference</a>
+    </div>
+
+    <div class="content-container">
+        <h1 class="centered">📖 Atlas de México</h1>
+
+        <div class="warning-box">
+            <h2 style="margin-top: 0; color: #856404;">⚠️ Important Notice</h2>
+            <p><strong>This synopsis is NOT a substitute for reading the source material.</strong></p>
+        </div>
+
+        <h2>About This Synopsis</h2>
+        <p>The following synopsis sections provide a comprehensive overview of Mexican geography, society, infrastructure, economy, and political divisions as presented in the <span class="book-title">Atlas de México</span>.</p>
+
+        <p>This synopsis is designed as a <strong>study aid and reference</strong> for those preparing for the Mexican citizenship exam. It covers essential geographic, demographic, and economic data points frequently tested on the naturalization exam.</p>
+
+        <h2>Synopsis Sections</h2>
+        <p>Select a section below to view its synopsis:</p>
+
+        <div class="synopsis-links">
+            <a href="/synopsis_atlas1" class="synopsis-card">
+                <h3>1. Medio Físico</h3>
+                <p>The Physical Environment - Relief, climate, hydrography, and biodiversity</p>
+            </a>
+            <a href="/synopsis_atlas2" class="synopsis-card">
+                <h3>2. Sociedad</h3>
+                <p>Society - Demographics, indigenous peoples, and cultural diversity</p>
+            </a>
+            <a href="/synopsis_atlas3" class="synopsis-card">
+                <h3>3. Infraestructura</h3>
+                <p>Infrastructure - Transportation, ports, airports, and energy networks</p>
+            </a>
+            <a href="/synopsis_atlas4" class="synopsis-card">
+                <h3>4. Economía</h3>
+                <p>Economy - Agriculture, industry, trade, and regional development</p>
+            </a>
+            <a href="/synopsis_atlas5" class="synopsis-card">
+                <h3>5. Entidades Federativas</h3>
+                <p>Federal Entities - The 32 states and their capitals</p>
+            </a>
+            <a href="/synopsis_atlas6" class="synopsis-card">
+                <h3>6. Geography Reference</h3>
+                <p>Comprehensive state-by-state reference of capitals, Pueblos Mágicos, UNESCO sites, and archaeological sites</p>
+            </a>
+        </div>
+
+        <div class="warning-box" style="margin-top: 30px;">
+            <p style="margin: 0;"><strong>Remember:</strong> These summaries are designed for exam preparation. For deeper understanding of Mexican geography and society, consult the full Atlas de México and related resources.</p>
+        </div>
+
+        <div class="next-section">
+            <a href="/synopsis_atlas1">Continue to First Section →</a>
+        </div>
+    </div>
+</body>
+</html>

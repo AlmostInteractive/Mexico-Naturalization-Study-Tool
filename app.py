@@ -347,7 +347,14 @@ def quiz():
     # 7. Add "I don't know" option at the end (always last position)
     options.append("No sé")
 
-    # 8. Render the HTML template, passing in the data it needs
+    # 8. Get total questions count
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) FROM questions')
+    total_questions = cursor.fetchone()[0]
+    conn.close()
+
+    # 9. Render the HTML template, passing in the data it needs
     return render_template(
         'index.html',
         question=question_text,
@@ -356,12 +363,9 @@ def quiz():
         notes=notes,
         question_id=question_id,
         # Progress information
-        current_chunk=max_chunk,
-        total_chunks=get_total_chunks(),
-        current_set_size=current_set_size,
         mastered_count=mastered_count,
         total_in_set=total_in_set,
-        progress_ratio=f"{answered_count}/{total_in_set}"
+        total_questions=total_questions
     )
 
 
@@ -2230,55 +2234,108 @@ def show_multiline_stats():
 # --- Synopsis Routes ---
 @app.route('/synopsis')
 def synopsis():
-    """Display the main synopsis introduction page."""
+    """Display the main synopsis selection page."""
     return render_template('synopsis.html')
 
 
-@app.route('/synopsis1')
-def synopsis1():
+@app.route('/synopsis_nmhm')
+def synopsis_nmhm():
+    """Display the main synopsis introduction page for Nueva Historia Minima de México."""
+    return render_template('synopsis_nmhm.html')
+
+
+@app.route('/synopsis_nmhm1')
+def synopsis_nmhm1():
     """Display the Ancient Mexico synopsis page."""
-    return render_template('synopsis1.html')
+    return render_template('synopsis_nmhm1.html')
 
 
-@app.route('/synopsis2')
-def synopsis2():
+@app.route('/synopsis_nmhm2')
+def synopsis_nmhm2():
     """Display the Colonial Era to 1760 synopsis page."""
-    return render_template('synopsis2.html')
+    return render_template('synopsis_nmhm2.html')
 
 
-@app.route('/synopsis3')
-def synopsis3():
+@app.route('/synopsis_nmhm3')
+def synopsis_nmhm3():
     """Display the Bourbon Reforms and Independence synopsis page."""
-    return render_template('synopsis3.html')
+    return render_template('synopsis_nmhm3.html')
 
 
-@app.route('/synopsis4')
-def synopsis4():
+@app.route('/synopsis_nmhm4')
+def synopsis_nmhm4():
     """Display the Independence to Consolidation synopsis page."""
-    return render_template('synopsis4.html')
+    return render_template('synopsis_nmhm4.html')
 
 
-@app.route('/synopsis5')
-def synopsis5():
+@app.route('/synopsis_nmhm5')
+def synopsis_nmhm5():
     """Display the Porfiriato synopsis page."""
-    return render_template('synopsis5.html')
+    return render_template('synopsis_nmhm5.html')
 
 
-@app.route('/synopsis6')
-def synopsis6():
+@app.route('/synopsis_nmhm6')
+def synopsis_nmhm6():
     """Display the Revolution synopsis page."""
-    return render_template('synopsis6.html')
+    return render_template('synopsis_nmhm6.html')
 
 
-@app.route('/synopsis7')
-def synopsis7():
+@app.route('/synopsis_nmhm7')
+def synopsis_nmhm7():
     """Display the Last Stretch synopsis page."""
-    return render_template('synopsis7.html')
+    return render_template('synopsis_nmhm7.html')
+
+
+@app.route('/synopsis_atlas')
+def synopsis_atlas():
+    """Display the main synopsis introduction page for Atlas de México."""
+    return render_template('synopsis_atlas.html')
+
+
+@app.route('/synopsis_atlas1')
+def synopsis_atlas1():
+    """Display the Medio Físico (Physical Environment) synopsis page."""
+    return render_template('synopsis_atlas1.html')
+
+
+@app.route('/synopsis_atlas2')
+def synopsis_atlas2():
+    """Display the Sociedad (Society) synopsis page."""
+    return render_template('synopsis_atlas2.html')
+
+
+@app.route('/synopsis_atlas3')
+def synopsis_atlas3():
+    """Display the Infraestructura (Infrastructure) synopsis page."""
+    return render_template('synopsis_atlas3.html')
+
+
+@app.route('/synopsis_atlas4')
+def synopsis_atlas4():
+    """Display the Economía (Economy) synopsis page."""
+    return render_template('synopsis_atlas4.html')
+
+
+@app.route('/synopsis_atlas5')
+def synopsis_atlas5():
+    """Display the Entidades Federativas (Federal Entities) synopsis page."""
+    return render_template('synopsis_atlas5.html')
+
+
+@app.route('/synopsis_atlas6')
+def synopsis_atlas6():
+    """Display the Geography Reference as part of Atlas de México."""
+    return render_geography_reference('synopsis_atlas6.html')
 
 
 @app.route('/synopsis_geography')
 def synopsis_geography():
     """Display the comprehensive geography reference page."""
+    return render_geography_reference('synopsis_geography.html')
+
+
+def render_geography_reference(template_name):
+    """Helper function to render geography reference with data."""
     conn = get_db_connection()
 
     # Get all states with capitals
@@ -2363,7 +2420,7 @@ def synopsis_geography():
 
     conn.close()
 
-    return render_template('synopsis_geography.html',
+    return render_template(template_name,
                          geography_data=geography_data,
                          unesco_superscripts=unesco_superscripts,
                          arch_superscripts=arch_superscripts,

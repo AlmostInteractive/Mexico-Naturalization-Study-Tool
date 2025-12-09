@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Synopsis - Introduction</title>
+    <title>Sinopsis</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/synopsis.css') }}">
 </head>
@@ -21,106 +21,45 @@
 
     <!-- Sub Menu Bar (Sinopsis Section) -->
     <div class="submenu-bar">
-        <a href="/synopsis1" class="submenu-nav-link">1. Antiguo</a>
+        <a href="/synopsis_nmhm" class="submenu-nav-link">Nueva Historia Mínima de México</a>
         <span class="submenu-separator">|</span>
-        <a href="/synopsis2" class="submenu-nav-link">2. Colonial</a>
-        <span class="submenu-separator">|</span>
-        <a href="/synopsis3" class="submenu-nav-link">3. Reformas Borbónicas</a>
-        <span class="submenu-separator">|</span>
-        <a href="/synopsis4" class="submenu-nav-link">4. Independencia</a>
-        <span class="submenu-separator">|</span>
-        <a href="/synopsis5" class="submenu-nav-link">5. Porfiriato</a>
-        <span class="submenu-separator">|</span>
-        <a href="/synopsis6" class="submenu-nav-link">6. Revolución</a>
-        <span class="submenu-separator">|</span>
-        <a href="/synopsis7" class="submenu-nav-link">7. Moderno</a>
-        <span class="submenu-separator">|</span>
-        <a href="/synopsis_geography" class="submenu-nav-link">🗺️ Geografía</a>
+        <a href="/synopsis_atlas" class="submenu-nav-link">Atlas de México</a>
     </div>
 
     <div class="content-container">
-        <h1 class="centered">📖 Historical Synopsis</h1>
+        <h1 class="centered">📖 Sinopsis</h1>
 
         <div class="warning-box">
             <h2 style="margin-top: 0; color: #856404;">⚠️ Important Notice</h2>
-            <p><strong>This synopsis is NOT a substitute for reading the source material.</strong></p>
+            <p><strong>These synopses are NOT substitutes for reading the source material.</strong></p>
         </div>
 
-        <h2>About This Synopsis</h2>
-        <p>The following synopsis sections provide a very brief, high-level overview of Mexican history as presented in the book <span class="book-title">Nueva historia mínima de México</span> (New Minimal History of Mexico), published by El Colegio de México.</p>
+        <h2>About These Synopses</h2>
+        <p>This section contains brief synopses from important references that you will need to study well in order to pass the Naturalization exam:</p>
 
-        <p>This synopsis is designed as a <strong>study aid and quick reference</strong> for those preparing for the Mexican citizenship exam. It distills hundreds of pages of scholarly historical analysis into digestible summaries covering seven major periods of Mexican history.</p>
+        <h3>Nueva Historia Mínima de México</h3>
+        <p>A comprehensive historical overview covering seven major periods of Mexican history, from ancient civilizations through modern times.</p>
 
-        <h2>What This Synopsis Is NOT</h2>
-        <p>This synopsis is <strong>not</strong>:</p>
-        <ul>
-            <li><strong>A replacement for the original book</strong> – The full text contains crucial context, nuance, scholarly debate, and detailed analysis that cannot be captured in a brief summary.</li>
-            <li><strong>Comprehensive</strong> – Many important events, figures, and themes have been condensed or omitted entirely to maintain brevity.</li>
-            <li><strong>Authoritative</strong> – This is an informal study guide, not an academic resource. For serious historical understanding, consult the original work and its extensive bibliography.</li>
-            <li><strong>A substitute for critical thinking</strong> – History is complex and contested. These summaries present one narrative perspective but cannot capture the full scope of historical interpretation.</li>
-        </ul>
+        <h3>Atlas de México</h3>
+        <p>Geographic and cultural information about Mexico's states, regions, and landmarks.</p>
 
-        <h2>Why Read the Full Book?</h2>
-        <p>While this synopsis may help you pass the citizenship exam, <span class="book-title">Nueva historia mínima de México</span> offers far more:</p>
-        <ul>
-            <li><strong>Deep understanding</strong> of the forces that shaped modern Mexico</li>
-            <li><strong>Rich details</strong> about the people, movements, and ideas that defined each era</li>
-            <li><strong>Historical context</strong> that helps make sense of contemporary Mexican society and politics</li>
-            <li><strong>Academic rigor</strong> from some of Mexico's most respected historians</li>
-            <li><strong>Cultural insight</strong> essential for anyone seeking to truly understand Mexican identity and heritage</li>
-        </ul>
+        <h3>Geografía</h3>
+        <p>A comprehensive reference of Mexican geography including states, capitals, Pueblos Mágicos, UNESCO World Heritage sites, and archaeological zones.</p>
 
-        <p>The book is relatively short (around 300 pages), accessible to general readers, and provides the foundation that these quiz questions are based upon. <strong>If you are serious about understanding Mexican history and culture, please obtain and read the full text.</strong></p>
-
-        <h2>How to Use This Synopsis</h2>
-        <p>Use these synopsis sections to:</p>
-        <ul>
-            <li>Review major themes and periodization before studying the full book</li>
-            <li>Refresh your memory on key events and transitions</li>
-            <li>Quickly look up which period a specific event belongs to</li>
-            <li>Supplement your quiz practice with contextual background</li>
-        </ul>
-
-        <h2>Synopsis Sections</h2>
-        <p>Select a period below to view its synopsis:</p>
-
+        <h2>Select a Synopsis Collection</h2>
         <div class="synopsis-links">
-            <a href="/synopsis1" class="synopsis-card">
-                <h3>1. Ancient Mexico</h3>
-                <p>Origins through the Mexica Empire (5000 BC - 1519 AD)</p>
+            <a href="/synopsis_nmhm" class="synopsis-card">
+                <h3>Nueva Historia Mínima de México</h3>
+                <p>Seven periods of Mexican history</p>
             </a>
-            <a href="/synopsis2" class="synopsis-card">
-                <h3>2. Colonial Era</h3>
-                <p>The foundation of New Spain (1519 - 1760)</p>
+            <a href="/synopsis_atlas" class="synopsis-card">
+                <h3>Atlas de México</h3>
+                <p>Geographic and cultural information</p>
             </a>
-            <a href="/synopsis3" class="synopsis-card">
-                <h3>3. Bourbon Reforms</h3>
-                <p>Imperial modernization and independence (1760 - 1821)</p>
+            <a href="/synopsis_geography" class="synopsis-card">
+                <h3>Geografía</h3>
+                <p>Comprehensive geography reference</p>
             </a>
-            <a href="/synopsis4" class="synopsis-card">
-                <h3>4. Early Republic</h3>
-                <p>From independence to consolidation (1821 - 1876)</p>
-            </a>
-            <a href="/synopsis5" class="synopsis-card">
-                <h3>5. Porfiriato</h3>
-                <p>Dictatorship and modernization (1876 - 1910)</p>
-            </a>
-            <a href="/synopsis6" class="synopsis-card">
-                <h3>6. Revolution</h3>
-                <p>Violent transformation (1910 - 1920)</p>
-            </a>
-            <a href="/synopsis7" class="synopsis-card">
-                <h3>7. Modern Era</h3>
-                <p>Institutionalization and democracy (1929 - 2000)</p>
-            </a>
-        </div>
-
-        <div class="warning-box" style="margin-top: 30px;">
-            <p style="margin: 0;"><strong>Remember:</strong> These summaries are a starting point, not the destination. For true understanding and appreciation of Mexican history, there is no substitute for engaging with the full scholarly work.</p>
-        </div>
-
-        <div class="next-section">
-            <a href="/synopsis1">Continue to First Section →</a>
         </div>
     </div>
 </body>

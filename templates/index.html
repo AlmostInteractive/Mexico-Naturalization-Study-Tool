@@ -98,16 +98,9 @@
         <!-- Progress indicator -->
         <div class="progress-container" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
             <div style="font-size: 0.9em; color: #495057;">
-                <strong>Progreso:</strong> Conjunto {{ current_chunk }} de {{ total_chunks }}
-                ({{ current_set_size }} preguntas activas)
-            </div>
-            <div style="font-size: 0.85em; color: #6c757d; margin-top: 5px;">
-                Dominadas: {{ mastered_count }} de {{ total_in_set }} | Respondidas 3+ veces: {{ progress_ratio }}
-            </div>
-            <div style="margin-top: 8px;">
-                <div style="width: 100%; background-color: #e9ecef; border-radius: 4px; height: 6px;">
-                    <div style="width: {{ (current_chunk / total_chunks * 100)|round }}%; background-color: #005a31; height: 6px; border-radius: 4px; transition: width 0.3s ease;"></div>
-                </div>
+                Preguntas Dominadas: {{ mastered_count }} |
+                Preguntas en Sesión: {{ total_in_set }} |
+                Preguntas Totales: {{ total_questions }}
             </div>
         </div>
 
