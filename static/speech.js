@@ -157,7 +157,7 @@ function updateSpeechRate() {
             speechRate = 1.0;
             localStorage.setItem('speechRate', speechRate);
         }
-        rateSelect.value = speechRate.toString();
+        rateSelect.value = speechRate.toFixed(1).toString();
     }
 }
 
