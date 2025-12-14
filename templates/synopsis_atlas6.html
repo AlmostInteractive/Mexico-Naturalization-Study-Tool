@@ -12,11 +12,13 @@
     <!-- Main Menu Bar -->
     <div class="menu-bar">
         <div class="menu-left">
-            <a href="/synopsis" class="menu-nav-link">📖 Sinopsis</a>
+            <a href="/" class="menu-nav-link">📊 Progress</a>
             <span class="menu-separator">|</span>
-            <a href="/" class="menu-nav-link">📝 Preguntas</a>
+            <a href="/synopsis" class="menu-nav-link">📖 Synopsis</a>
             <span class="menu-separator">|</span>
-            <a href="/geography_states" class="menu-nav-link">🗺️ Geografía</a>
+            <a href="/questions_multi" class="menu-nav-link">📝 Questions</a>
+            <span class="menu-separator">|</span>
+            <a href="/geography_states" class="menu-nav-link">🗺️ Geography</a>
         </div>
     </div>
 
@@ -26,7 +28,7 @@
         <span class="submenu-separator">|</span>
         <a href="/synopsis_atlas" class="submenu-nav-link">Atlas de México</a>
         <span class="submenu-separator">|</span>
-        <a href="/synopsis_geography" class="submenu-nav-link">Geografía</a>
+        <a href="/synopsis_geography" class="submenu-nav-link">Geography</a>
     </div>
 
     <!-- Third Level Menu (Atlas Chapters) -->
@@ -49,7 +51,7 @@
 
         <div class="intro-section">
             <p>This comprehensive reference shows all geographic information organized by state. Use this to study before taking the geography quizzes.</p>
-            <p><strong>{{ state_count }} States</strong> • <strong>{{ pueblo_count }} Pueblos Mágicos</strong> • <strong>{{ unesco_count }} UNESCO Sites</strong> • <strong>{{ arch_count }} Public Archaeological Sites</strong></p>
+            <p><strong>{{ state_count }} States</strong> • <strong>{{ pueblo_count }} Magical Towns</strong> • <strong>{{ unesco_count }} UNESCO Sites</strong> • <strong>{{ arch_count }} Public Archaeological Sites</strong></p>
         </div>
 
         <!-- Desktop Table View -->
@@ -59,7 +61,7 @@
                     <tr>
                         <th class="col-state">Estado</th>
                         <th class="col-capital">Capital</th>
-                        <th class="col-pueblos">Pueblos Mágicos</th>
+                        <th class="col-pueblos">Magical Towns</th>
                         <th class="col-unesco">UNESCO Sites</th>
                         <th class="col-archaeological">Archaeological Sites</th>
                     </tr>
@@ -129,7 +131,7 @@
 
                     {% if item.pueblos %}
                     <div class="info-section">
-                        <div class="section-header">Pueblos Mágicos ({{ item.pueblos|length }}):</div>
+                        <div class="section-header">Magical Towns ({{ item.pueblos|length }}):</div>
                         <ul>
                             {% for pueblo in item.pueblos %}
                             <li>{{ pueblo }}</li>

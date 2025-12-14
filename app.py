@@ -292,7 +292,7 @@ def get_distractors_for_question(question_id):
 
 
 # --- Routes ---
-@app.route('/')
+@app.route('/questions_multi')
 def quiz():
     """
     This function handles the logic for a single quiz question with weighted selection.
@@ -369,7 +369,7 @@ def quiz():
     )
 
 
-@app.route('/answer', methods=['POST'])
+@app.route('/questions_multi_answer', methods=['POST'])
 def record_answer():
     """Record the user's answer and update statistics."""
     data = request.get_json()
@@ -502,9 +502,9 @@ def delete_question():
         conn.close()
 
 
-@app.route('/progress')
-def show_progress():
-    """Show detailed learning progress."""
+@app.route('/progress_json')
+def show_progress_json():
+    """Show detailed learning progress (JSON API)."""
     max_chunk, current_set_size, avg_success, answered_count, total_in_set, mastered_count = get_current_question_set()
 
     conn = get_db_connection()
@@ -543,6 +543,176 @@ def show_progress():
             for chunk in chunk_progress
         ]
     })
+
+
+@app.route('/')
+def show_progress():
+    """Show mastery progress page for Questions and Geography sections (main index page)."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # --- Questions Section ---
+
+    # Multiple Choice questions
+    cursor.execute('''
+        SELECT COUNT(*) as total,
+               SUM(CASE WHEN is_mastered = 1 THEN 1 ELSE 0 END) as mastered
+        FROM question_stats
+    ''')
+    mc_result = cursor.fetchone()
+    mc_total = mc_result['total'] or 0
+    mc_mastered = mc_result['mastered'] or 0
+    mc_percentage = (mc_mastered / mc_total * 100) if mc_total > 0 else 0
+
+    # Lists (Multiline) questions
+    cursor.execute('SELECT COUNT(*) as total FROM multiline_questions')
+    ml_total = cursor.fetchone()['total'] or 0
+
+    # Count mastered multiline questions (where all items are mastered)
+    cursor.execute('''
+        SELECT mq.id,
+               COUNT(mi.id) as total_items,
+               SUM(CASE WHEN ms.is_mastered = 1 THEN 1 ELSE 0 END) as mastered_items
+        FROM multiline_questions mq
+        JOIN multiline_items mi ON mq.id = mi.question_id
+        LEFT JOIN multiline_stats ms ON mi.id = ms.item_id
+        GROUP BY mq.id
+    ''')
+    ml_questions = cursor.fetchall()
+    ml_mastered = sum(1 for q in ml_questions if q['mastered_items'] == q['total_items'] and q['total_items'] > 0)
+    ml_percentage = (ml_mastered / ml_total * 100) if ml_total > 0 else 0
+
+    # Questions section totals
+    questions_total = mc_total + ml_total
+    questions_mastered = mc_mastered + ml_mastered
+    questions_percentage = (questions_mastered / questions_total * 100) if questions_total > 0 else 0
+
+    # --- Geography Section ---
+
+    # States (part 1)
+    cursor.execute('''
+        SELECT COUNT(*) as total,
+               SUM(CASE WHEN is_mastered = 1 THEN 1 ELSE 0 END) as mastered
+        FROM geography_stats
+        WHERE part = 1
+    ''')
+    states_result = cursor.fetchone()
+    states_total = states_result['total'] or 0
+    states_mastered = states_result['mastered'] or 0
+    states_percentage = (states_mastered / states_total * 100) if states_total > 0 else 0
+
+    # Capitals (part 2)
+    cursor.execute('''
+        SELECT COUNT(*) as total,
+               SUM(CASE WHEN is_mastered = 1 THEN 1 ELSE 0 END) as mastered
+        FROM geography_stats
+        WHERE part = 2
+    ''')
+    capitals_result = cursor.fetchone()
+    capitals_total = capitals_result['total'] or 0
+    capitals_mastered = capitals_result['mastered'] or 0
+    capitals_percentage = (capitals_mastered / capitals_total * 100) if capitals_total > 0 else 0
+
+    # Pueblos Mágicos
+    cursor.execute('''
+        SELECT COUNT(*) as total,
+               SUM(CASE WHEN is_mastered = 1 THEN 1 ELSE 0 END) as mastered
+        FROM pueblos_stats
+    ''')
+    pueblos_result = cursor.fetchone()
+    pueblos_total = pueblos_result['total'] or 0
+    pueblos_mastered = pueblos_result['mastered'] or 0
+    pueblos_percentage = (pueblos_mastered / pueblos_total * 100) if pueblos_total > 0 else 0
+
+    # UNESCO Sites
+    cursor.execute('''
+        SELECT COUNT(*) as total,
+               SUM(CASE WHEN is_mastered = 1 THEN 1 ELSE 0 END) as mastered
+        FROM unesco_stats
+    ''')
+    unesco_result = cursor.fetchone()
+    unesco_total = unesco_result['total'] or 0
+    unesco_mastered = unesco_result['mastered'] or 0
+    unesco_percentage = (unesco_mastered / unesco_total * 100) if unesco_total > 0 else 0
+
+    # Archaeological Sites
+    cursor.execute('''
+        SELECT COUNT(*) as total,
+               SUM(CASE WHEN is_mastered = 1 THEN 1 ELSE 0 END) as mastered
+        FROM archaeological_stats
+    ''')
+    arch_result = cursor.fetchone()
+    arch_total = arch_result['total'] or 0
+    arch_mastered = arch_result['mastered'] or 0
+    arch_percentage = (arch_mastered / arch_total * 100) if arch_total > 0 else 0
+
+    # Geography section totals
+    geography_total = states_total + capitals_total + pueblos_total + unesco_total + arch_total
+    geography_mastered = states_mastered + capitals_mastered + pueblos_mastered + unesco_mastered + arch_mastered
+    geography_percentage = (geography_mastered / geography_total * 100) if geography_total > 0 else 0
+
+    conn.close()
+
+    # Build data structure for template
+    progress_data = {
+        'questions': {
+            'total': questions_total,
+            'mastered': questions_mastered,
+            'percentage': questions_percentage,
+            'subsections': {
+                'multiple_choice': {
+                    'total': mc_total,
+                    'mastered': mc_mastered,
+                    'percentage': mc_percentage
+                },
+                'lists': {
+                    'total': ml_total,
+                    'mastered': ml_mastered,
+                    'percentage': ml_percentage
+                }
+            }
+        },
+        'geography': {
+            'total': geography_total,
+            'mastered': geography_mastered,
+            'percentage': geography_percentage,
+            'subsections': {
+                'states': {
+                    'total': states_total,
+                    'mastered': states_mastered,
+                    'percentage': states_percentage
+                },
+                'capitals': {
+                    'total': capitals_total,
+                    'mastered': capitals_mastered,
+                    'percentage': capitals_percentage
+                },
+                'pueblos_magicos': {
+                    'total': pueblos_total,
+                    'mastered': pueblos_mastered,
+                    'percentage': pueblos_percentage
+                },
+                'unesco_sites': {
+                    'total': unesco_total,
+                    'mastered': unesco_mastered,
+                    'percentage': unesco_percentage
+                },
+                'archaeological_sites': {
+                    'total': arch_total,
+                    'mastered': arch_mastered,
+                    'percentage': arch_percentage
+                }
+            }
+        }
+    }
+
+    return render_template('progress.html', progress=progress_data)
+
+
+@app.route('/progress')
+def redirect_progress():
+    """Redirect /progress to / for backward compatibility."""
+    return redirect('/')
 
 
 # --- Geography Quiz Functions ---
@@ -1970,7 +2140,7 @@ def get_weighted_multiline_question(exclude_question_id=None):
 
 
 # --- Multiline Routes ---
-@app.route('/multiline')
+@app.route('/questions_lists')
 def multiline_quiz():
     """Display the progressive multiline question quiz."""
     # Get session_id from query parameter
@@ -2093,7 +2263,7 @@ def multiline_quiz():
     )
 
 
-@app.route('/multiline_answer', methods=['POST'])
+@app.route('/questions_lists_answer', methods=['POST'])
 def record_multiline_answer():
     """Record the user's answer to a multiline question and update session."""
     data = request.get_json()

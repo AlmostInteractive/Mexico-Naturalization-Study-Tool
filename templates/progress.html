@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Progress - Mexican Citizenship Exam</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <style>
+        h1 {
+            color: #005a31;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .progress-section {
+            margin-bottom: 40px;
+            padding: 25px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            border: 2px solid #dee2e6;
+        }
+        .section-title {
+            color: #005a31;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+        .section-total {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #005a31;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #e8f5e9;
+            border-radius: 5px;
+            border: 1px solid #005a31;
+        }
+        .subsections {
+            margin-left: 20px;
+        }
+        .subsection-item {
+            margin-bottom: 15px;
+            padding: 12px;
+            background-color: white;
+            border-radius: 5px;
+            border: 1px solid #ced4da;
+        }
+        .subsection-name {
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        .stat-line {
+            font-size: 1.1em;
+            color: #212529;
+        }
+        .percentage {
+            color: #005a31;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Menu Bar -->
+    <div class="menu-bar">
+        <div class="menu-left">
+            <a href="/" class="menu-nav-link active">📊 Progress</a>
+            <span class="menu-separator">|</span>
+            <a href="/synopsis" class="menu-nav-link">📖 Synopsis</a>
+            <span class="menu-separator">|</span>
+            <a href="/questions_multi" class="menu-nav-link">📝 Questions</a>
+            <span class="menu-separator">|</span>
+            <a href="/geography_states" class="menu-nav-link">🗺️ Geography</a>
+        </div>
+    </div>
+
+    <div class="quiz-container">
+        <h1>📊 Mastery Progress</h1>
+
+        <!-- Questions Section -->
+        <div class="progress-section">
+            <div class="section-title">Questions</div>
+            <div class="section-total">
+                {{ progress.questions.mastered }} of {{ progress.questions.total }}
+                (<span class="percentage">{{ "%.1f"|format(progress.questions.percentage) }}% mastered</span>)
+            </div>
+
+            <div class="subsections">
+                <div class="subsection-item">
+                    <div class="subsection-name">Multiple Choice</div>
+                    <div class="stat-line">
+                        {{ progress.questions.subsections.multiple_choice.mastered }} of {{ progress.questions.subsections.multiple_choice.total }}
+                        (<span class="percentage">{{ "%.1f"|format(progress.questions.subsections.multiple_choice.percentage) }}% mastered</span>)
+                    </div>
+                </div>
+
+                <div class="subsection-item">
+                    <div class="subsection-name">Lists</div>
+                    <div class="stat-line">
+                        {{ progress.questions.subsections.lists.mastered }} of {{ progress.questions.subsections.lists.total }}
+                        (<span class="percentage">{{ "%.1f"|format(progress.questions.subsections.lists.percentage) }}% mastered</span>)
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Geography Section -->
+        <div class="progress-section">
+            <div class="section-title">Geography</div>
+            <div class="section-total">
+                {{ progress.geography.mastered }} of {{ progress.geography.total }}
+                (<span class="percentage">{{ "%.1f"|format(progress.geography.percentage) }}% mastered</span>)
+            </div>
+
+            <div class="subsections">
+                <div class="subsection-item">
+                    <div class="subsection-name">States</div>
+                    <div class="stat-line">
+                        {{ progress.geography.subsections.states.mastered }} of {{ progress.geography.subsections.states.total }}
+                        (<span class="percentage">{{ "%.1f"|format(progress.geography.subsections.states.percentage) }}% mastered</span>)
+                    </div>
+                </div>
+
+                <div class="subsection-item">
+                    <div class="subsection-name">Capitals</div>
+                    <div class="stat-line">
+                        {{ progress.geography.subsections.capitals.mastered }} of {{ progress.geography.subsections.capitals.total }}
+                        (<span class="percentage">{{ "%.1f"|format(progress.geography.subsections.capitals.percentage) }}% mastered</span>)
+                    </div>
+                </div>
+
+                <div class="subsection-item">
+                    <div class="subsection-name">Pueblos Mágicos</div>
+                    <div class="stat-line">
+                        {{ progress.geography.subsections.pueblos_magicos.mastered }} of {{ progress.geography.subsections.pueblos_magicos.total }}
+                        (<span class="percentage">{{ "%.1f"|format(progress.geography.subsections.pueblos_magicos.percentage) }}% mastered</span>)
+                    </div>
+                </div>
+
+                <div class="subsection-item">
+                    <div class="subsection-name">UNESCO Sites</div>
+                    <div class="stat-line">
+                        {{ progress.geography.subsections.unesco_sites.mastered }} of {{ progress.geography.subsections.unesco_sites.total }}
+                        (<span class="percentage">{{ "%.1f"|format(progress.geography.subsections.unesco_sites.percentage) }}% mastered</span>)
+                    </div>
+                </div>
+
+                <div class="subsection-item">
+                    <div class="subsection-name">Archaeological Sites</div>
+                    <div class="stat-line">
+                        {{ progress.geography.subsections.archaeological_sites.mastered }} of {{ progress.geography.subsections.archaeological_sites.total }}
+                        (<span class="percentage">{{ "%.1f"|format(progress.geography.subsections.archaeological_sites.percentage) }}% mastered</span>)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

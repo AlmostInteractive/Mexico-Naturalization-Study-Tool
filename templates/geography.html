@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Geografía de México - Práctica</title>
+    <title>Geography de México - Práctica</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
     <style>
         /* Geography quiz-specific styles */
@@ -138,15 +138,15 @@
     <!-- Main Menu Bar -->
     <div class="menu-bar">
         <div class="menu-left">
-            <a href="/synopsis" class="menu-nav-link">📖 Sinopsis</a>
+            <a href="/synopsis" class="menu-nav-link">📖 Synopsis</a>
             <span class="menu-separator">|</span>
-            <a href="/" class="menu-nav-link">📝 Preguntas</a>
+            <a href="/" class="menu-nav-link">📝 Questions</a>
             <span class="menu-separator">|</span>
-            <a href="/geography_states" class="menu-nav-link active">🗺️ Geografía</a>
+            <a href="/geography_states" class="menu-nav-link active">🗺️ Geography</a>
         </div>
         <div class="menu-right">
             <div class="menu-item">
-                <label for="speech-rate">Velocidad:</label>
+                <label for="speech-rate">Speed:</label>
                 <select id="speech-rate">
                     <option value="0.7">Lento</option>
                     <option value="1.0" selected>Normal</option>
@@ -157,13 +157,13 @@
         </div>
     </div>
 
-    <!-- Sub Menu Bar (Geografía Section) -->
+    <!-- Sub Menu Bar (Geography Section) -->
     <div class="submenu-bar">
         <a href="/geography_states" class="submenu-nav-link {% if section == 'states' %}active{% endif %}">Estados</a>
         <span class="submenu-separator">|</span>
         <a href="/geography_capitals" class="submenu-nav-link {% if section == 'capitals' %}active{% endif %}">Capitales</a>
         <span class="submenu-separator">|</span>
-        <a href="/geography_pueblos" class="submenu-nav-link {% if section == 'pueblos' %}active{% endif %}">Pueblos Mágicos</a>
+        <a href="/geography_pueblos" class="submenu-nav-link {% if section == 'pueblos' %}active{% endif %}">Magical Towns</a>
         <span class="submenu-separator">|</span>
         <a href="/geography_unesco" class="submenu-nav-link {% if section == 'unesco' %}active{% endif %}">UNESCO Patrimonio</a>
         <span class="submenu-separator">|</span>
@@ -171,7 +171,7 @@
     </div>
 
     <div class="quiz-container">
-        <h1>{% if section == 'states' %}Estados de México{% elif section == 'capitals' %}Capitales de México{% elif section == 'pueblos' %}Pueblos Mágicos{% else %}Geografía de México{% endif %}</h1>
+        <h1>{% if section == 'states' %}Estados de México{% elif section == 'capitals' %}Capitales de México{% elif section == 'pueblos' %}Magical Towns{% else %}Geography de México{% endif %}</h1>
 
         <!-- Progress indicator -->
         <div class="progress-container">

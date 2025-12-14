@@ -61,55 +61,57 @@
     <!-- Main Menu Bar -->
     <div class="menu-bar">
         <div class="menu-left">
-            <a href="/synopsis" class="menu-nav-link">📖 Sinopsis</a>
+            <a href="/" class="menu-nav-link">📊 Progress</a>
             <span class="menu-separator">|</span>
-            <a href="/" class="menu-nav-link active">📝 Preguntas</a>
+            <a href="/synopsis" class="menu-nav-link">📖 Synopsis</a>
             <span class="menu-separator">|</span>
-            <a href="/geography_states" class="menu-nav-link">🗺️ Geografía</a>
+            <a href="/questions_multi" class="menu-nav-link active">📝 Questions</a>
+            <span class="menu-separator">|</span>
+            <a href="/geography_states" class="menu-nav-link">🗺️ Geography</a>
         </div>
         <div class="menu-right">
             <div class="menu-item">
-                <label for="speech-rate">Velocidad:</label>
+                <label for="speech-rate">Speed:</label>
                 <select id="speech-rate">
-                    <option value="0.7">Lenta</option>
+                    <option value="0.7">Slow</option>
                     <option value="1.0" selected>Normal</option>
-                    <option value="1.2">Rápida</option>
+                    <option value="1.2">Fast</option>
                 </select>
             </div>
             <div class="menu-item">
                 <button id="menu-speech-toggle" class="menu-toggle">🔊 Audio: ON</button>
             </div>
             <div class="menu-item">
-                <button id="delete-question-btn" class="menu-toggle" style="background-color: #dc3545; border-color: #dc3545;" title="Eliminar esta pregunta de la base de datos">🗑️ Eliminar</button>
+                <button id="delete-question-btn" class="menu-toggle" style="background-color: #dc3545; border-color: #dc3545;" title="Delete this question from the database">🗑️ Delete</button>
             </div>
         </div>
     </div>
 
-    <!-- Sub Menu Bar (Preguntas Section) -->
+    <!-- Sub Menu Bar (Questions Section) -->
     <div class="submenu-bar">
-        <a href="/" class="submenu-nav-link active">Opción Múltiple</a>
+        <a href="/questions_multi" class="submenu-nav-link active">Multiple Choice</a>
         <span class="submenu-separator">|</span>
-        <a href="/multiline" class="submenu-nav-link">Listas</a>
+        <a href="/questions_lists" class="submenu-nav-link">Lists</a>
     </div>
 
     <div class="quiz-container">
-        <h1>Prueba de Práctica</h1>
+        <h1>Practice Test</h1>
 
         <!-- Progress indicator -->
         <div class="progress-container" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
             <div style="font-size: 0.9em; color: #495057;">
-                Preguntas Dominadas: {{ mastered_count }} |
-                Preguntas en Sesión: {{ total_in_set }} |
-                Preguntas Totales: {{ total_questions }}
+                Mastered Questions: {{ mastered_count }} |
+                Questions in Session: {{ total_in_set }} |
+                Total Questions: {{ total_questions }}
             </div>
         </div>
 
         <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 25px;">
             <div id="question" class="question" style="margin-bottom: 0; min-height: 50px; flex: 1;">{{ question }}</div>
-            <button id="replay-speech" style="background: none; border: 2px solid #005a31; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px;" title="Repetir pregunta">
+            <button id="replay-speech" style="background: none; border: 2px solid #005a31; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px;" title="Replay question">
                 🔊
             </button>
-            <button id="translate-btn" style="background: none; border: 2px solid #005a31; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px;" title="Traducir en Google">
+            <button id="translate-btn" style="background: none; border: 2px solid #005a31; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px;" title="Translate in Google">
                 🌐
             </button>
         </div>
@@ -192,7 +194,7 @@
             // Next button functionality
             nextButton.addEventListener('click', (e) => {
                 e.preventDefault();
-                window.location.href = '/';
+                window.location.href = '/questions_multi';
             });
 
             // Delete question functionality
@@ -216,7 +218,7 @@
 
                         if (result.success) {
                             alert('Pregunta eliminada exitosamente.');
-                            window.location.href = '/'; // Load next question
+                            window.location.href = '/questions_multi'; // Load next question
                         } else {
                             alert('Error al eliminar la pregunta: ' + result.error);
                             deleteButton.disabled = false;
@@ -271,7 +273,7 @@
                             speakText(fullText, () => {
                                 // Auto-advance after speech completes
                                 setTimeout(() => {
-                                    window.location.href = '/';
+                                    window.location.href = '/questions_multi';
                                 }, 1000); // 1 second delay after speech
                             });
                         }, 300);
@@ -294,7 +296,7 @@
                                 speakText(fullText, () => {
                                     // Auto-advance after speech completes
                                     setTimeout(() => {
-                                        window.location.href = '/';
+                                        window.location.href = '/questions_multi';
                                     }, 1000); // 1 second delay after speech
                                 });
                             }, 300);
@@ -319,7 +321,7 @@
                                 speakText(fullText, () => {
                                     // Auto-advance after speech completes
                                     setTimeout(() => {
-                                        window.location.href = '/';
+                                        window.location.href = '/questions_multi';
                                     }, 1000); // 1 second delay after speech
                                 });
                             }, 300);
@@ -327,7 +329,7 @@
 
                         // Send answer to server for tracking (only for actual attempts)
                         // Fire and forget - don't block on this
-                        fetch('/answer', {
+                        fetch('/questions_multi_answer', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -346,7 +348,7 @@
                     // If speech is disabled, auto-advance after 2 seconds
                     if (!speechEnabled) {
                         setTimeout(() => {
-                            window.location.href = '/';
+                            window.location.href = '/questions_multi';
                         }, 2000);
                     }
                 }
