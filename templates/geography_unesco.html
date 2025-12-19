@@ -41,7 +41,7 @@
         <span class="submenu-separator">|</span>
         <a href="/geography_capitals" class="submenu-nav-link">Capitales</a>
         <span class="submenu-separator">|</span>
-        <a href="/geography_pueblos" class="submenu-nav-link">Magical Towns</a>
+        <a href="/geography_pueblos" class="submenu-nav-link">Pueblos Mágicos</a>
         <span class="submenu-separator">|</span>
         <a href="/geography_unesco" class="submenu-nav-link active">UNESCO Patrimonio</a>
         <span class="submenu-separator">|</span>
@@ -52,9 +52,11 @@
         <h1>Sitios Patrimonio de la Humanidad</h1>
 
         <!-- Progress indicator -->
-        <div class="progress-container">
-            <div class="progress-stats">
-                Dominados: {{ mastered_count }} de {{ total_states }}
+        <div class="progress-container" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+            <div style="font-size: 0.9em; color: #495057;">
+                Mastered Sites: {{ mastered_count }} |
+                Sites in Session: {{ total_in_set }} |
+                Total Sites: {{ total_sites }}
             </div>
         </div>
 
@@ -145,7 +147,7 @@
                         speechText = `${formattedSites} se encuentran en ${stateName}`;
                     } else if (isCorrect) {
                         // Mode 1 correct
-                        speechText = 'Correcto';
+                        speechText = `Correcto, ${correctAnswer}`;
                     } else {
                         // Mode 1 incorrect
                         speechText = `Incorrecto. ${correctAnswer} está en ${stateName}`;

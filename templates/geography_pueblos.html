@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Magical Towns - Práctica</title>
+    <title>Pueblos Mágicos - Práctica</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/geography.css') }}">
 </head>
@@ -41,7 +41,7 @@
         <span class="submenu-separator">|</span>
         <a href="/geography_capitals" class="submenu-nav-link">Capitales</a>
         <span class="submenu-separator">|</span>
-        <a href="/geography_pueblos" class="submenu-nav-link active">Magical Towns</a>
+        <a href="/geography_pueblos" class="submenu-nav-link active">Pueblos Mágicos</a>
         <span class="submenu-separator">|</span>
         <a href="/geography_unesco" class="submenu-nav-link">UNESCO Patrimonio</a>
         <span class="submenu-separator">|</span>
@@ -49,12 +49,14 @@
     </div>
 
     <div class="quiz-container">
-        <h1>Magical Towns</h1>
+        <h1>Pueblos Mágicos</h1>
 
         <!-- Progress indicator -->
-        <div class="progress-container">
-            <div class="progress-stats">
-                Dominados: {{ mastered_count }} de {{ total_states }}
+        <div class="progress-container" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+            <div style="font-size: 0.9em; color: #495057;">
+                Mastered Pueblos: {{ mastered_count }} |
+                Pueblos in Session: {{ total_in_set }} |
+                Total Pueblos: {{ total_pueblos }}
             </div>
         </div>
 
@@ -145,7 +147,7 @@
                         speechText = `${formattedPueblos} se encuentran en ${stateName}`;
                     } else if (isCorrect) {
                         // Mode 1 correct
-                        speechText = 'Correcto';
+                        speechText = `Correcto, ${correctAnswer}`;
                     } else {
                         // Mode 1 incorrect: "Incorrecto. [Pueblo] está en [State]"
                         speechText = `Incorrecto. ${correctAnswer} está en ${stateName}`;

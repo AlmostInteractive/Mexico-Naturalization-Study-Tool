@@ -51,7 +51,7 @@
 
         <div class="intro-section">
             <p>This comprehensive reference shows all geographic information organized by state. Use this to study before taking the geography quizzes.</p>
-            <p><strong>{{ state_count }} States</strong> • <strong>{{ pueblo_count }} Magical Towns</strong> • <strong>{{ unesco_count }} UNESCO Sites</strong> • <strong>{{ arch_count }} Public Archaeological Sites</strong></p>
+            <p><strong>{{ state_count }} States</strong> • <strong>{{ pueblo_count }} Pueblos Mágicos</strong> • <strong>{{ unesco_count }} UNESCO Sites</strong> • <strong>{{ arch_count }} Public Archaeological Sites</strong></p>
         </div>
 
         <!-- Desktop Table View -->
@@ -59,9 +59,9 @@
             <table class="geography-table">
                 <thead>
                     <tr>
-                        <th class="col-state">Estado</th>
+                        <th class="col-state">State</th>
                         <th class="col-capital">Capital</th>
-                        <th class="col-pueblos">Magical Towns</th>
+                        <th class="col-pueblos">Pueblos Mágicos</th>
                         <th class="col-unesco">UNESCO Sites</th>
                         <th class="col-archaeological">Archaeological Sites</th>
                     </tr>
@@ -131,7 +131,7 @@
 
                     {% if item.pueblos %}
                     <div class="info-section">
-                        <div class="section-header">Magical Towns ({{ item.pueblos|length }}):</div>
+                        <div class="section-header">Pueblos Mágicos ({{ item.pueblos|length }}):</div>
                         <ul>
                             {% for pueblo in item.pueblos %}
                             <li>{{ pueblo }}</li>

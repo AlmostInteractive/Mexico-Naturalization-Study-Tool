@@ -41,7 +41,7 @@
         <span class="submenu-separator">|</span>
         <a href="/geography_capitals" class="submenu-nav-link">Capitales</a>
         <span class="submenu-separator">|</span>
-        <a href="/geography_pueblos" class="submenu-nav-link">Magical Towns</a>
+        <a href="/geography_pueblos" class="submenu-nav-link">Pueblos Mágicos</a>
         <span class="submenu-separator">|</span>
         <a href="/geography_unesco" class="submenu-nav-link">UNESCO Patrimonio</a>
         <span class="submenu-separator">|</span>
@@ -258,7 +258,7 @@
                                     correctPaths.forEach(p => p.classList.add('correct'));
                                 }
 
-                                const speechText = isCorrect ? 'Correcto' : 'Incorrecto';
+                                const speechText = isCorrect ? `Correcto, ${correctStateName}` : `Incorrecto. La respuesta correcta es ${correctStateName}`;
 
                                 fetch('/geography_answer', {
                                     method: 'POST',

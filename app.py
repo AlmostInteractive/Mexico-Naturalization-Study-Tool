@@ -879,6 +879,144 @@ def get_weighted_geography_question(part, exclude_geography_id=None):
     return None
 
 
+def check_and_unlock_pueblos_chunk():
+    """Check if all pueblos in current chunk are mastered, unlock next if so."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get current max unlocked chunk
+    cursor.execute('SELECT max_unlocked_pueblos_chunk FROM user_progress WHERE id = 1')
+    result = cursor.fetchone()
+    max_chunk = result['max_unlocked_pueblos_chunk'] if result else 1
+
+    # Get all pueblos in currently unlocked chunks
+    cursor.execute('''
+        SELECT p.id
+        FROM pueblos_magicos p
+        WHERE p.chunk_number <= ?
+        ORDER BY p.id
+    ''', (max_chunk,))
+
+    all_pueblos = cursor.fetchall()
+    total_in_set = len(all_pueblos)
+
+    # Count pueblos that are mastered (80% rolling success + 3+ attempts)
+    qualified_pueblos = 0
+    for pueblo in all_pueblos:
+        if is_pueblo_mastered(pueblo['id'], cursor):
+            qualified_pueblos += 1
+
+    # Unlock next chunk if ALL pueblos are mastered
+    if qualified_pueblos == total_in_set:
+        # Get total chunks available
+        cursor.execute('SELECT MAX(chunk_number) FROM pueblos_magicos')
+        max_available_chunk = cursor.fetchone()[0] or 1
+
+        # Only unlock next chunk if we haven't reached the maximum
+        if max_chunk < max_available_chunk:
+            new_max_chunk = max_chunk + 1
+            cursor.execute('''
+                UPDATE user_progress
+                SET max_unlocked_pueblos_chunk = ?
+                WHERE id = 1
+            ''', (new_max_chunk,))
+            conn.commit()
+
+    conn.close()
+
+
+def check_and_unlock_unesco_chunk():
+    """Check if all UNESCO sites in current chunk are mastered, unlock next if so."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get current max unlocked chunk
+    cursor.execute('SELECT max_unlocked_unesco_chunk FROM user_progress WHERE id = 1')
+    result = cursor.fetchone()
+    max_chunk = result['max_unlocked_unesco_chunk'] if result else 1
+
+    # Get all UNESCO sites in currently unlocked chunks
+    cursor.execute('''
+        SELECT u.id
+        FROM unesco_sites u
+        WHERE u.chunk_number <= ?
+        ORDER BY u.id
+    ''', (max_chunk,))
+
+    all_sites = cursor.fetchall()
+    total_in_set = len(all_sites)
+
+    # Count sites that are mastered (80% rolling success + 3+ attempts)
+    qualified_sites = 0
+    for site in all_sites:
+        if is_unesco_mastered(site['id'], cursor):
+            qualified_sites += 1
+
+    # Unlock next chunk if ALL sites are mastered
+    if qualified_sites == total_in_set:
+        # Get total chunks available
+        cursor.execute('SELECT MAX(chunk_number) FROM unesco_sites')
+        max_available_chunk = cursor.fetchone()[0] or 1
+
+        # Only unlock next chunk if we haven't reached the maximum
+        if max_chunk < max_available_chunk:
+            new_max_chunk = max_chunk + 1
+            cursor.execute('''
+                UPDATE user_progress
+                SET max_unlocked_unesco_chunk = ?
+                WHERE id = 1
+            ''', (new_max_chunk,))
+            conn.commit()
+
+    conn.close()
+
+
+def check_and_unlock_archaeological_chunk():
+    """Check if all archaeological sites in current chunk are mastered, unlock next if so."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get current max unlocked chunk
+    cursor.execute('SELECT max_unlocked_archaeological_chunk FROM user_progress WHERE id = 1')
+    result = cursor.fetchone()
+    max_chunk = result['max_unlocked_archaeological_chunk'] if result else 1
+
+    # Get all archaeological sites in currently unlocked chunks
+    cursor.execute('''
+        SELECT a.id
+        FROM archaeological_sites a
+        WHERE a.chunk_number <= ?
+        ORDER BY a.id
+    ''', (max_chunk,))
+
+    all_sites = cursor.fetchall()
+    total_in_set = len(all_sites)
+
+    # Count sites that are mastered (80% rolling success + 3+ attempts)
+    qualified_sites = 0
+    for site in all_sites:
+        if is_archaeological_mastered(site['id'], cursor):
+            qualified_sites += 1
+
+    # Unlock next chunk if ALL sites are mastered
+    if qualified_sites == total_in_set:
+        # Get total chunks available
+        cursor.execute('SELECT MAX(chunk_number) FROM archaeological_sites')
+        max_available_chunk = cursor.fetchone()[0] or 1
+
+        # Only unlock next chunk if we haven't reached the maximum
+        if max_chunk < max_available_chunk:
+            new_max_chunk = max_chunk + 1
+            cursor.execute('''
+                UPDATE user_progress
+                SET max_unlocked_archaeological_chunk = ?
+                WHERE id = 1
+            ''', (new_max_chunk,))
+            conn.commit()
+
+    conn.close()
+
+
 # --- Geography Routes ---
 @app.route('/geography')
 def geography_redirect():
@@ -1137,19 +1275,30 @@ def geography_pueblos():
         options = incorrect_options + [correct_answer]
         random.shuffle(options)
 
-    # Get progress stats
-    cursor.execute('''
-        SELECT COUNT(*) as total,
-               SUM(CASE WHEN times_answered >= 3 THEN 1 ELSE 0 END) as answered_enough,
-               COUNT(CASE WHEN times_answered >= 3 THEN 1 END) as answered_count
-        FROM pueblos_stats
-    ''')
-    stats = cursor.fetchone()
+    # Get progress stats (chunk-specific)
+    cursor.execute('SELECT max_unlocked_pueblos_chunk FROM user_progress WHERE id = 1')
+    result = cursor.fetchone()
+    max_chunk = result['max_unlocked_pueblos_chunk'] if result else 1
 
-    # Count mastered pueblos
-    cursor.execute('SELECT id FROM pueblos_magicos')
-    all_pueblo_ids = cursor.fetchall()
-    mastered_count = sum(1 for p_row in all_pueblo_ids if is_pueblo_mastered(p_row['id'], cursor))
+    # Get total chunks available
+    cursor.execute('SELECT MAX(chunk_number) FROM pueblos_magicos')
+    total_chunks = cursor.fetchone()[0] or 1
+
+    # Get total pueblos in entire category
+    cursor.execute('SELECT COUNT(*) as total FROM pueblos_magicos')
+    total_pueblos = cursor.fetchone()['total']
+
+    # Get pueblos in currently unlocked chunks
+    cursor.execute('''
+        SELECT p.id
+        FROM pueblos_magicos p
+        WHERE p.chunk_number <= ?
+    ''', (max_chunk,))
+    unlocked_pueblo_ids = cursor.fetchall()
+    total_in_set = len(unlocked_pueblo_ids)
+
+    # Count mastered pueblos in unlocked chunks
+    mastered_count = sum(1 for p_row in unlocked_pueblo_ids if is_pueblo_mastered(p_row['id'], cursor))
 
     conn.close()
 
@@ -1166,12 +1315,15 @@ def geography_pueblos():
         question_text=question_text,
         correct_answer=correct_answer,
         options=options,
-        total_states=stats['total'],
+        total_in_set=total_in_set,
         mastered_count=mastered_count,
+        total_pueblos=total_pueblos,
         correct_pueblo_ids=correct_pueblo_ids_str,
         mode=mode,
         state_name=state_name,
-        state_pueblos_str=state_pueblos_str
+        state_pueblos_str=state_pueblos_str,
+        current_chunk=max_chunk,
+        total_chunks=total_chunks
     )
 
 
@@ -1224,11 +1376,26 @@ def geography_unesco():
         options = incorrect_options + [correct_answer]
         random.shuffle(options)
 
-    cursor.execute('SELECT COUNT(*) as total FROM unesco_stats')
-    stats = cursor.fetchone()
-    cursor.execute('SELECT id FROM unesco_sites')
-    all_site_ids = cursor.fetchall()
-    mastered_count = sum(1 for s_row in all_site_ids if is_unesco_mastered(s_row['id'], cursor))
+    # Get progress stats (chunk-specific)
+    cursor.execute('SELECT max_unlocked_unesco_chunk FROM user_progress WHERE id = 1')
+    result = cursor.fetchone()
+    max_chunk = result['max_unlocked_unesco_chunk'] if result else 1
+
+    # Get total chunks available
+    cursor.execute('SELECT MAX(chunk_number) FROM unesco_sites')
+    total_chunks = cursor.fetchone()[0] or 1
+
+    # Get total UNESCO sites in entire category
+    cursor.execute('SELECT COUNT(*) as total FROM unesco_sites')
+    total_sites = cursor.fetchone()['total']
+
+    # Get UNESCO sites in currently unlocked chunks
+    cursor.execute('SELECT id FROM unesco_sites WHERE chunk_number <= ?', (max_chunk,))
+    unlocked_site_ids = cursor.fetchall()
+    total_in_set = len(unlocked_site_ids)
+
+    # Count mastered sites in unlocked chunks
+    mastered_count = sum(1 for s_row in unlocked_site_ids if is_unesco_mastered(s_row['id'], cursor))
     conn.close()
 
     correct_site_ids_str = ','.join(str(sid) for sid in correct_site_ids)
@@ -1239,12 +1406,15 @@ def geography_unesco():
         question_text=question_text,
         correct_answer=correct_answer,
         options=options,
-        total_states=stats['total'],
+        total_in_set=total_in_set,
         mastered_count=mastered_count,
+        total_sites=total_sites,
         correct_site_ids=correct_site_ids_str,
         mode=mode,
         state_name=state_name,
-        state_sites_str=state_sites_str
+        state_sites_str=state_sites_str,
+        current_chunk=max_chunk,
+        total_chunks=total_chunks
     )
 
 
@@ -1297,11 +1467,26 @@ def geography_archaeological():
         options = incorrect_options + [correct_answer]
         random.shuffle(options)
 
-    cursor.execute('SELECT COUNT(*) as total FROM archaeological_stats')
-    stats = cursor.fetchone()
-    cursor.execute('SELECT id FROM archaeological_sites')
-    all_site_ids = cursor.fetchall()
-    mastered_count = sum(1 for s_row in all_site_ids if is_archaeological_mastered(s_row['id'], cursor))
+    # Get progress stats (chunk-specific)
+    cursor.execute('SELECT max_unlocked_archaeological_chunk FROM user_progress WHERE id = 1')
+    result = cursor.fetchone()
+    max_chunk = result['max_unlocked_archaeological_chunk'] if result else 1
+
+    # Get total chunks available
+    cursor.execute('SELECT MAX(chunk_number) FROM archaeological_sites')
+    total_chunks = cursor.fetchone()[0] or 1
+
+    # Get total archaeological sites in entire category
+    cursor.execute('SELECT COUNT(*) as total FROM archaeological_sites')
+    total_sites = cursor.fetchone()['total']
+
+    # Get archaeological sites in currently unlocked chunks
+    cursor.execute('SELECT id FROM archaeological_sites WHERE chunk_number <= ?', (max_chunk,))
+    unlocked_site_ids = cursor.fetchall()
+    total_in_set = len(unlocked_site_ids)
+
+    # Count mastered sites in unlocked chunks
+    mastered_count = sum(1 for s_row in unlocked_site_ids if is_archaeological_mastered(s_row['id'], cursor))
     conn.close()
 
     correct_site_ids_str = ','.join(str(sid) for sid in correct_site_ids)
@@ -1312,12 +1497,15 @@ def geography_archaeological():
         question_text=question_text,
         correct_answer=correct_answer,
         options=options,
-        total_states=stats['total'],
+        total_in_set=total_in_set,
         mastered_count=mastered_count,
+        total_sites=total_sites,
         correct_site_ids=correct_site_ids_str,
         mode=mode,
         state_name=state_name,
-        state_sites_str=state_sites_str
+        state_sites_str=state_sites_str,
+        current_chunk=max_chunk,
+        total_chunks=total_chunks
     )
 
 
@@ -1362,6 +1550,9 @@ def record_pueblos_answer():
     # Update pueblos statistics for all credited pueblos
     update_pueblos_stats(pueblo_ids, is_correct)
 
+    # Check if we should unlock the next chunk
+    check_and_unlock_pueblos_chunk()
+
     # Return success
     return jsonify({
         'success': True,
@@ -1382,6 +1573,9 @@ def record_unesco_answer():
     site_ids = [int(sid) for sid in correct_site_ids.split(',') if sid]
     update_unesco_stats(site_ids, is_correct)
 
+    # Check if we should unlock the next chunk
+    check_and_unlock_unesco_chunk()
+
     return jsonify({
         'success': True,
         'is_correct': is_correct
@@ -1400,6 +1594,9 @@ def record_archaeological_answer():
     is_correct = selected_answer == correct_answer
     site_ids = [int(sid) for sid in correct_site_ids.split(',') if sid]
     update_archaeological_stats(site_ids, is_correct)
+
+    # Check if we should unlock the next chunk
+    check_and_unlock_archaeological_chunk()
 
     return jsonify({
         'success': True,
@@ -1637,12 +1834,18 @@ def get_weighted_pueblo_question(exclude_pueblo_id=None):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Get all pueblos with their stats
+    # Get current max unlocked chunk
+    cursor.execute('SELECT max_unlocked_pueblos_chunk FROM user_progress WHERE id = 1')
+    result = cursor.fetchone()
+    max_chunk = result['max_unlocked_pueblos_chunk'] if result else 1
+
+    # Get all pueblos with their stats (filtered by unlocked chunks)
     cursor.execute('''
         SELECT p.id, p.pueblo_name, p.state_name, ps.weight
         FROM pueblos_magicos p
         JOIN pueblos_stats ps ON p.id = ps.pueblo_id
-    ''')
+        WHERE p.chunk_number <= ?
+    ''', (max_chunk,))
 
     pueblos = cursor.fetchall()
 
@@ -1785,11 +1988,18 @@ def get_weighted_unesco_question(exclude_site_id=None):
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # Get current max unlocked chunk
+    cursor.execute('SELECT max_unlocked_unesco_chunk FROM user_progress WHERE id = 1')
+    result = cursor.fetchone()
+    max_chunk = result['max_unlocked_unesco_chunk'] if result else 1
+
+    # Get all UNESCO sites with their stats (filtered by unlocked chunks)
     cursor.execute('''
         SELECT u.id, u.site_name, u.state_name, us.weight
         FROM unesco_sites u
         JOIN unesco_stats us ON u.id = us.site_id
-    ''')
+        WHERE u.chunk_number <= ?
+    ''', (max_chunk,))
 
     sites = cursor.fetchall()
 
@@ -1913,11 +2123,18 @@ def get_weighted_archaeological_question(exclude_site_id=None):
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # Get current max unlocked chunk
+    cursor.execute('SELECT max_unlocked_archaeological_chunk FROM user_progress WHERE id = 1')
+    result = cursor.fetchone()
+    max_chunk = result['max_unlocked_archaeological_chunk'] if result else 1
+
+    # Get all archaeological sites with their stats (filtered by unlocked chunks)
     cursor.execute('''
         SELECT a.id, a.site_name, a.state_name, acs.weight
         FROM archaeological_sites a
         JOIN archaeological_stats acs ON a.id = acs.site_id
-    ''')
+        WHERE a.chunk_number <= ?
+    ''', (max_chunk,))
 
     sites = cursor.fetchall()
 
