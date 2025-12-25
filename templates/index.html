@@ -270,12 +270,17 @@
                                 ? `La respuesta correcta es: ${correctAnswer}. Nota: ${notes}`
                                 : `La respuesta correcta es: ${correctAnswer}`;
 
-                            speakText(fullText, () => {
-                                // Auto-advance after speech completes
-                                setTimeout(() => {
-                                    window.location.href = '/questions_multi';
-                                }, 1000); // 1 second delay after speech
-                            });
+                            // If audio is OFF and there are notes, show Next button instead of auto-advancing
+                            if (!speechEnabled && notes) {
+                                nextButton.style.display = 'block';
+                            } else {
+                                speakText(fullText, () => {
+                                    // Auto-advance after speech completes
+                                    setTimeout(() => {
+                                        window.location.href = '/questions_multi';
+                                    }, 1000); // 1 second delay after speech
+                                });
+                            }
                         }, 300);
                         // Don't send to server for tracking - "No sé" is neutral
                     } else {
@@ -293,12 +298,17 @@
                                     ? `Correcto. ${correctAnswer}. Nota: ${notes}`
                                     : `Correcto. ${correctAnswer}`;
 
-                                speakText(fullText, () => {
-                                    // Auto-advance after speech completes
-                                    setTimeout(() => {
-                                        window.location.href = '/questions_multi';
-                                    }, 1000); // 1 second delay after speech
-                                });
+                                // If audio is OFF and there are notes, show Next button instead of auto-advancing
+                                if (!speechEnabled && notes) {
+                                    nextButton.style.display = 'block';
+                                } else {
+                                    speakText(fullText, () => {
+                                        // Auto-advance after speech completes
+                                        setTimeout(() => {
+                                            window.location.href = '/questions_multi';
+                                        }, 1000); // 1 second delay after speech
+                                    });
+                                }
                             }, 300);
                         } else {
                             selectedOption.classList.add('incorrect');
@@ -318,12 +328,17 @@
                                     ? `La respuesta correcta es: ${correctAnswer}. Nota: ${notes}`
                                     : `La respuesta correcta es: ${correctAnswer}`;
 
-                                speakText(fullText, () => {
-                                    // Auto-advance after speech completes
-                                    setTimeout(() => {
-                                        window.location.href = '/questions_multi';
-                                    }, 1000); // 1 second delay after speech
-                                });
+                                // If audio is OFF and there are notes, show Next button instead of auto-advancing
+                                if (!speechEnabled && notes) {
+                                    nextButton.style.display = 'block';
+                                } else {
+                                    speakText(fullText, () => {
+                                        // Auto-advance after speech completes
+                                        setTimeout(() => {
+                                            window.location.href = '/questions_multi';
+                                        }, 1000); // 1 second delay after speech
+                                    });
+                                }
                             }, 300);
                         }
 

@@ -1,7 +1,7 @@
 import sqlite3
 import random
 import secrets
-from flask import Flask, render_template, request, jsonify, session, redirect
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from weight_calculator import RECENT_ATTEMPTS_WINDOW, get_rolling_success_rate
 
 # Initialize the Flask application
@@ -1348,32 +1348,95 @@ def geography_unesco():
     cursor.execute('SELECT COUNT(*) as count FROM unesco_sites WHERE state_name = ?', (state_name,))
     sites_in_state = cursor.fetchone()['count']
 
-    # Determine mode
-    mode = random.randint(1, 2) if sites_in_state >= 3 else 1
+    # Check if current site has a year in unesco_dates table
+    cursor.execute('''
+        SELECT ud.year_added
+        FROM unesco_dates ud
+        WHERE ud.site_name = ?
+    ''', (site_name,))
+    site_year_row = cursor.fetchone()
+    site_has_year = site_year_row is not None
 
-    question_text = ""
-    correct_answer = ""
-    correct_site_ids = []
-    options = []
+    # Determine mode (1=which state, 2=which NOT in state, 3=what year)
+    # Mode 3 only if site has a year
+    if site_has_year:
+        mode = random.randint(1, 3)
+        # Reduce mode 2 if not enough sites in state
+        if mode == 2 and sites_in_state < 3:
+            mode = random.choice([1, 3])
+    else:
+        mode = random.randint(1, 2) if sites_in_state >= 3 else 1
 
     if mode == 1:
+        # Mode 1: Which site IS in this state?
         question_text = f"Selecciona el sitio Patrimonio de la Humanidad que está en {state_name}:"
         correct_answer = site_name
         correct_site_ids = [site_id]
 
-        cursor.execute('SELECT site_name FROM unesco_sites WHERE state_name != ? ORDER BY RANDOM() LIMIT 3', (state_name,))
-        distractors = [row['site_name'] for row in cursor.fetchall()]
+        # Get unique site names as distractors (some sites span multiple states)
+        cursor.execute('SELECT DISTINCT site_name FROM unesco_sites WHERE state_name != ? ORDER BY RANDOM() LIMIT 10', (state_name,))
+        all_distractors = [row['site_name'] for row in cursor.fetchall()]
+
+        # Filter out the correct answer and take first 3 unique
+        distractors = [d for d in all_distractors if d != correct_answer][:3]
+
+        # Ensure we have exactly 3 distractors
+        while len(distractors) < 3:
+            distractors.append("Ninguna de las anteriores")
+
         options = distractors + [correct_answer]
         random.shuffle(options)
-    else:
+    elif mode == 2:
+        # Mode 2: Which site is NOT in this state?
         question_text = f"Selecciona el sitio Patrimonio de la Humanidad que NO está en {state_name}:"
-        cursor.execute('SELECT id, site_name FROM unesco_sites WHERE state_name = ? ORDER BY RANDOM() LIMIT 3', (state_name,))
-        state_sites = cursor.fetchall()
-        correct_site_ids = [row['id'] for row in state_sites]
-        incorrect_options = [row['site_name'] for row in state_sites]
-        cursor.execute('SELECT site_name FROM unesco_sites WHERE state_name != ? ORDER BY RANDOM() LIMIT 1', (state_name,))
-        correct_answer = cursor.fetchone()['site_name']
+
+        # Get sites IN this state (unique names)
+        cursor.execute('SELECT DISTINCT site_name FROM unesco_sites WHERE state_name = ? ORDER BY RANDOM() LIMIT 3', (state_name,))
+        state_site_names = [row['site_name'] for row in cursor.fetchall()]
+
+        # Get corresponding IDs for tracking
+        if state_site_names:
+            placeholders = ','.join('?' * len(state_site_names))
+            cursor.execute(f'SELECT id FROM unesco_sites WHERE site_name IN ({placeholders}) AND state_name = ?',
+                         state_site_names + [state_name])
+            correct_site_ids = [row['id'] for row in cursor.fetchall()]
+        else:
+            correct_site_ids = []
+
+        incorrect_options = state_site_names
+
+        # Get site NOT in this state
+        cursor.execute('SELECT DISTINCT site_name FROM unesco_sites WHERE state_name != ? ORDER BY RANDOM() LIMIT 10', (state_name,))
+        potential_correct = [row['site_name'] for row in cursor.fetchall()]
+
+        # Find first one not in incorrect_options
+        correct_answer = None
+        for site in potential_correct:
+            if site not in incorrect_options:
+                correct_answer = site
+                break
+
+        if not correct_answer:
+            correct_answer = "Ninguna de las anteriores"
+
         options = incorrect_options + [correct_answer]
+        random.shuffle(options)
+    else:
+        # Mode 3: What year was this site designated?
+        site_year = site_year_row['year_added']
+        question_text = f"¿En qué año fue designado '{site_name}' como patrimonio de la UNESCO?"
+        correct_answer = str(site_year)
+        correct_site_ids = [site_id]
+
+        # Generate year distractors (±1-5 years)
+        distractors = set()
+        while len(distractors) < 3:
+            offset = random.choice([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5])
+            candidate = site_year + offset
+            if candidate != site_year and 1970 <= candidate <= 2030:
+                distractors.add(str(candidate))
+
+        options = list(distractors) + [correct_answer]
         random.shuffle(options)
 
     # Get progress stats (chunk-specific)
@@ -2286,7 +2349,6 @@ def get_weighted_multiline_question(exclude_question_id=None):
         SELECT
             mq.id,
             mq.question_text,
-            mq.category,
             mq.total_items,
             mq.required_correct,
             AVG(ms.weight) as avg_weight,
@@ -2360,34 +2422,19 @@ def get_weighted_multiline_question(exclude_question_id=None):
 @app.route('/questions_lists')
 def multiline_quiz():
     """Display the progressive multiline question quiz."""
-    # Get session_id from query parameter
-    session_id = request.args.get('session', type=int)
-
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # If we have a session, load it
-    if session_id:
-        cursor.execute('''
-            SELECT question_id, items_answered, consecutive_correct, completed
-            FROM multiline_sessions
-            WHERE id = ?
-        ''', (session_id,))
-        session = cursor.fetchone()
+    # Get current list session from Flask session (not URL params)
+    list_session_data = session.get('list_session')
 
-        if session and not session['completed']:
-            question_id = session['question_id']
-            items_answered = session['items_answered'].split(',') if session['items_answered'] else []
-            consecutive_correct = session['consecutive_correct']
-        else:
-            # Session completed or not found, start a new question
-            session_id = None
+    if list_session_data:
+        # Load existing session
+        question_id = list_session_data['question_id']
+        items_answered = list_session_data['items_answered']
+        consecutive_correct = list_session_data['consecutive_correct']
     else:
-        session_id = None
-
-    # If no valid session, start a new question
-    if not session_id:
-        # Select a question
+        # Start a new question - select using weighted probability
         question_data = get_weighted_multiline_question()
         if not question_data:
             conn.close()
@@ -2397,17 +2444,16 @@ def multiline_quiz():
         items_answered = []
         consecutive_correct = 0
 
-        # Create a new session
-        cursor.execute('''
-            INSERT INTO multiline_sessions (question_id, items_answered, consecutive_correct, completed)
-            VALUES (?, '', 0, 0)
-        ''', (question_id,))
-        session_id = cursor.lastrowid
-        conn.commit()
+        # Store in Flask session
+        session['list_session'] = {
+            'question_id': question_id,
+            'items_answered': items_answered,
+            'consecutive_correct': consecutive_correct
+        }
 
     # Get question details
     cursor.execute('''
-        SELECT question_text, category, total_items, required_correct
+        SELECT question_text, total_items, required_correct
         FROM multiline_questions
         WHERE id = ?
     ''', (question_id,))
@@ -2423,19 +2469,15 @@ def multiline_quiz():
     all_items = cursor.fetchall()
 
     # Filter out already-answered items
-    items_answered_ids = [int(x) for x in items_answered if x]
+    items_answered_ids = items_answered
     available_items = [item for item in all_items if item['id'] not in items_answered_ids]
 
     if not available_items:
-        # All items answered, mark session as complete
-        cursor.execute('''
-            UPDATE multiline_sessions
-            SET session_end = CURRENT_TIMESTAMP, completed = 1
-            WHERE id = ?
-        ''', (session_id,))
-        conn.commit()
+        # All items answered - shouldn't happen if required_correct < total_items
+        # Clear session and start over
+        session.pop('list_session', None)
         conn.close()
-        return "Question complete! All items answered.", 200
+        return redirect(url_for('multiline_quiz'))
 
     # Select one correct answer from available items (weighted selection)
     weights = [item['weight'] for item in available_items]
@@ -2444,16 +2486,18 @@ def multiline_quiz():
     else:
         correct_item = random.choices(available_items, weights=weights, k=1)[0]
 
-    # Select 3 random distractors from OTHER questions in the same category
+    # Get pre-generated distractors for this QUESTION from the database
     cursor.execute('''
-        SELECT mi.item_text
-        FROM multiline_items mi
-        JOIN multiline_questions mq ON mi.question_id = mq.id
-        WHERE mq.category = ? AND mi.question_id != ? AND mi.id NOT IN (''' + ','.join(['?'] * len(items_answered_ids)) + ''')
+        SELECT distractor_text
+        FROM multiline_question_distractors
+        WHERE question_id = ?
         ORDER BY RANDOM()
         LIMIT 3
-    ''', [question['category'], question_id] + items_answered_ids)
-    distractors = [row['item_text'] for row in cursor.fetchall()]
+    ''', (question_id,))
+    distractor_rows = cursor.fetchall()
+
+    # Extract distractor texts
+    distractors = [row['distractor_text'] for row in distractor_rows if row['distractor_text'] and row['distractor_text'].strip()]
 
     # If we don't have enough distractors, pad with generic ones
     while len(distractors) < 3:
@@ -2463,29 +2507,44 @@ def multiline_quiz():
     options = distractors + [correct_item['item_text']]
     random.shuffle(options)
 
+    # Get stats for chunking display (similar to questions_multi)
+    cursor.execute('SELECT COUNT(*) FROM multiline_questions')
+    total_questions = cursor.fetchone()[0]
+
+    # Count mastered questions (questions where all items have high success rate)
+    cursor.execute('''
+        SELECT COUNT(DISTINCT mq.id)
+        FROM multiline_questions mq
+        JOIN multiline_items mi ON mq.id = mi.question_id
+        JOIN multiline_stats ms ON mi.id = ms.item_id
+        WHERE ms.is_mastered = 1
+        GROUP BY mq.id
+        HAVING COUNT(*) = mq.total_items
+    ''')
+    mastered_count = len(cursor.fetchall())
+
     conn.close()
 
     return render_template(
         'multiline.html',
-        session_id=session_id,
         question_text=question['question_text'],
-        category=question['category'],
         options=options,
         correct_answer=correct_item['item_text'],
-        correct_item_id=correct_item['id'],
+        item_id=correct_item['id'],
         consecutive_correct=consecutive_correct,
         required_correct=question['required_correct'],
         total_items=question['total_items'],
-        items_answered=len(items_answered_ids)
+        items_answered=len(items_answered_ids),
+        total_questions=total_questions,
+        mastered_count=mastered_count
     )
 
 
 @app.route('/questions_lists_answer', methods=['POST'])
 def record_multiline_answer():
-    """Record the user's answer to a multiline question and update session."""
+    """Record the user's answer to a multiline question and update Flask session."""
     data = request.get_json()
 
-    session_id = data.get('session_id')
     item_id = data.get('item_id')
     selected_answer = data.get('selected_answer')
     correct_answer = data.get('correct_answer')
@@ -2496,45 +2555,32 @@ def record_multiline_answer():
     # Update item statistics
     update_multiline_stats(item_id, is_correct)
 
-    # Update session
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    # Get current session data
+    list_session_data = session.get('list_session')
 
-    cursor.execute('''
-        SELECT question_id, items_answered, consecutive_correct, completed
-        FROM multiline_sessions
-        WHERE id = ?
-    ''', (session_id,))
-    session = cursor.fetchone()
-
-    if not session:
-        conn.close()
+    if not list_session_data:
         return jsonify({'success': False, 'error': 'Session not found'}), 404
 
-    question_id = session['question_id']
-    items_answered = session['items_answered'].split(',') if session['items_answered'] else []
-    consecutive_correct = session['consecutive_correct']
+    question_id = list_session_data['question_id']
+    items_answered = list_session_data['items_answered']
+    consecutive_correct = list_session_data['consecutive_correct']
 
     # Add this item to answered list
-    items_answered.append(str(item_id))
-    items_answered_str = ','.join(items_answered)
+    items_answered.append(item_id)
 
     # Get required correct count
+    conn = get_db_connection()
+    cursor = conn.cursor()
     cursor.execute('SELECT required_correct FROM multiline_questions WHERE id = ?', (question_id,))
     required_correct = cursor.fetchone()['required_correct']
+    conn.close()
 
     # Update consecutive correct count
     if is_correct:
         consecutive_correct += 1
     else:
-        # Wrong answer, mark session as complete
-        cursor.execute('''
-            UPDATE multiline_sessions
-            SET items_answered = ?, consecutive_correct = ?, session_end = CURRENT_TIMESTAMP, completed = 1
-            WHERE id = ?
-        ''', (items_answered_str, consecutive_correct, session_id))
-        conn.commit()
-        conn.close()
+        # Wrong answer - clear session and start over
+        session.pop('list_session', None)
         return jsonify({
             'success': True,
             'is_correct': False,
@@ -2545,14 +2591,8 @@ def record_multiline_answer():
 
     # Check if we've reached the required count
     if consecutive_correct >= required_correct:
-        # Success! Mark session as complete
-        cursor.execute('''
-            UPDATE multiline_sessions
-            SET items_answered = ?, consecutive_correct = ?, session_end = CURRENT_TIMESTAMP, completed = 1
-            WHERE id = ?
-        ''', (items_answered_str, consecutive_correct, session_id))
-        conn.commit()
-        conn.close()
+        # Success! Clear session
+        session.pop('list_session', None)
         return jsonify({
             'success': True,
             'is_correct': True,
@@ -2561,21 +2601,17 @@ def record_multiline_answer():
             'required': required_correct
         })
 
-    # Continue - update session and continue
-    cursor.execute('''
-        UPDATE multiline_sessions
-        SET items_answered = ?, consecutive_correct = ?
-        WHERE id = ?
-    ''', (items_answered_str, consecutive_correct, session_id))
-    conn.commit()
-    conn.close()
+    # Continue - update Flask session
+    session['list_session'] = {
+        'question_id': question_id,
+        'items_answered': items_answered,
+        'consecutive_correct': consecutive_correct
+    }
 
     return jsonify({
         'success': True,
         'is_correct': True,
-        'completed': False,
-        'score': consecutive_correct,
-        'required': required_correct
+        'completed': False
     })
 
 
@@ -2734,13 +2770,14 @@ def render_geography_reference(template_name):
     unesco_count = conn.execute('SELECT COUNT(DISTINCT site_name) FROM unesco_sites').fetchone()[0]
     arch_count = conn.execute('SELECT COUNT(DISTINCT site_name) FROM archaeological_sites').fetchone()[0]
 
-    # Find multi-state UNESCO sites
+    # Find multi-state UNESCO sites (with years)
     unesco_multi_state = conn.execute('''
-        SELECT site_name, GROUP_CONCAT(state_name, ', ') as states, COUNT(*) as state_count
-        FROM unesco_sites
-        GROUP BY site_name
+        SELECT us.site_name, ud.year_added, GROUP_CONCAT(us.state_name, ', ') as states, COUNT(*) as state_count
+        FROM unesco_sites us
+        LEFT JOIN unesco_dates ud ON us.site_name = ud.site_name
+        GROUP BY us.site_name
         HAVING state_count > 1
-        ORDER BY site_name
+        ORDER BY us.site_name
     ''').fetchall()
 
     # Find multi-state archaeological sites
@@ -2756,10 +2793,15 @@ def render_geography_reference(template_name):
     unesco_superscripts = {}
     unesco_legend = []
     for idx, site in enumerate(unesco_multi_state, 1):
+        # Format site name with year for display
+        site_display = site['site_name']
+        if site['year_added']:
+            site_display = f"{site['site_name']} ({site['year_added']})"
+
         unesco_superscripts[site['site_name']] = idx
         unesco_legend.append({
             'number': idx,
-            'site_name': site['site_name'],
+            'site_name': site_display,
             'states': site['states']
         })
 
@@ -2785,11 +2827,14 @@ def render_geography_reference(template_name):
             (state_name,)
         ).fetchall()
 
-        # Get UNESCO sites for this state
-        unesco_sites = conn.execute(
-            'SELECT site_name FROM unesco_sites WHERE state_name = ? ORDER BY site_name',
-            (state_name,)
-        ).fetchall()
+        # Get UNESCO sites for this state (with years from unesco_dates)
+        unesco_sites = conn.execute('''
+            SELECT us.site_name, ud.year_added
+            FROM unesco_sites us
+            LEFT JOIN unesco_dates ud ON us.site_name = ud.site_name
+            WHERE us.state_name = ?
+            ORDER BY us.site_name
+        ''', (state_name,)).fetchall()
 
         # Get archaeological sites for this state
         archaeological_sites = conn.execute(
@@ -2797,11 +2842,19 @@ def render_geography_reference(template_name):
             (state_name,)
         ).fetchall()
 
+        # Format UNESCO sites with years
+        unesco_formatted = []
+        for site in unesco_sites:
+            if site['year_added']:
+                unesco_formatted.append(f"{site['site_name']} ({site['year_added']})")
+            else:
+                unesco_formatted.append(site['site_name'])
+
         geography_data.append({
             'state': state_name,
             'capital': state['capital'],
             'pueblos': [p['pueblo_name'] for p in pueblos],
-            'unesco': [u['site_name'] for u in unesco_sites],
+            'unesco': unesco_formatted,
             'archaeological': [a['site_name'] for a in archaeological_sites]
         })
 

@@ -117,7 +117,16 @@
 
     <div class="quiz-container">
         <h1>List Questions</h1>
-        <div class="category">{{ category }}</div>
+
+        <div style="text-align: center; margin-bottom: 15px; color: #666; font-size: 0.9em;">
+            <span style="display: inline-block; margin: 0 10px;">
+                Mastered Questions: {{ mastered_count }}
+            </span>
+            |
+            <span style="display: inline-block; margin: 0 10px;">
+                Total Questions: {{ total_questions }}
+            </span>
+        </div>
 
         <div class="progress-bar">
             <div class="progress-fill" style="width: {{ (consecutive_correct / required_correct * 100)|int }}%">
@@ -138,17 +147,28 @@
         <button class="next-btn" id="nextBtn" onclick="nextQuestion()">Siguiente</button>
     </div>
 
+    <script src="/static/speech.js"></script>
+
     <script>
-        const sessionId = {{ session_id }};
-        const itemId = {{ correct_item_id }};
+        const itemId = {{ item_id }};
         const correctAnswer = "{{ correct_answer }}";
         let answerSubmitted = false;
+
+        // Auto-speak question when page loads (with delay to ensure speech is initialized)
+        setTimeout(() => {
+            if (speechEnabled) {
+                const questionText = document.querySelector('.question').textContent.trim();
+                speakText(questionText);
+            }
+        }, 500);
 
         function selectAnswer(selectedAnswer) {
             if (answerSubmitted) return;
             answerSubmitted = true;
 
+            const isCorrect = selectedAnswer === correctAnswer;
             const buttons = document.querySelectorAll('.option-btn');
+
             buttons.forEach(btn => {
                 btn.disabled = true;
                 if (btn.textContent.trim() === correctAnswer) {
@@ -166,7 +186,6 @@
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    session_id: sessionId,
                     item_id: itemId,
                     selected_answer: selectedAnswer,
                     correct_answer: correctAnswer
@@ -175,18 +194,28 @@
             .then(response => response.json())
             .then(data => {
                 if (data.completed) {
-                    // Question session completed
+                    // Session completed - speak feedback and redirect
                     setTimeout(() => {
+                        let message;
                         if (data.is_correct) {
-                            alert(`¡Excelente! Completaste la pregunta: ${data.score}/${data.required} correctas`);
+                            message = `¡Excelente! Completaste la pregunta con ${data.score} de ${data.required} correctas.`;
                         } else {
-                            alert(`Pregunta terminada. Conseguiste ${data.score}/${data.required} correctas.`);
+                            message = `Incorrecto. La respuesta correcta es: ${correctAnswer}. Conseguiste ${data.score} de ${data.required}.`;
                         }
-                        window.location.href = '/questions_lists';
-                    }, 1000);
+
+                        speakText(message, () => {
+                            setTimeout(() => {
+                                window.location.href = '/questions_lists';
+                            }, 1000);
+                        });
+                    }, 300);
                 } else {
-                    // Continue to next item
-                    document.getElementById('nextBtn').classList.add('visible');
+                    // Continue to next item - speak and show next button
+                    setTimeout(() => {
+                        speakText(`Correcto. ${correctAnswer}`, () => {
+                            document.getElementById('nextBtn').classList.add('visible');
+                        });
+                    }, 300);
                 }
             })
             .catch(error => {
@@ -196,7 +225,7 @@
         }
 
         function nextQuestion() {
-            window.location.href = '/multiline?session=' + sessionId;
+            window.location.href = '/questions_lists';
         }
     </script>
 </body>
