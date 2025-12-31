@@ -8,6 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <title>UNESCO Patrimonio - Práctica</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/quiz.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/geography.css') }}">
 </head>
 <body>
@@ -74,6 +75,7 @@
         <div id="correct-site-ids" style="display: none;">{{ correct_site_ids }}</div>
         <div id="mode" style="display: none;">{{ mode }}</div>
         <div id="state-name" style="display: none;">{{ state_name }}</div>
+        <div id="site-name" style="display: none;">{{ site_name }}</div>
         <div id="state-sites" style="display: none;">{{ state_sites_str }}</div>
 
         <a href="#" id="next-btn" class="next-btn">Siguiente Pregunta</a>
@@ -89,6 +91,7 @@
             const correctSiteIds = document.getElementById('correct-site-ids').textContent.trim();
             const mode = parseInt(document.getElementById('mode').textContent.trim());
             const stateName = document.getElementById('state-name').textContent.trim();
+            const siteName = document.getElementById('site-name').textContent.trim();
             const stateSitesStr = document.getElementById('state-sites').textContent.trim();
             const nextButton = document.getElementById('next-btn');
             const questionText = document.querySelector('.question').textContent.trim();
@@ -141,16 +144,17 @@
 
                     // Construct speech text based on mode and correctness
                     let speechText;
-                    if (mode === 2 && stateSitesStr) {
+                    if (mode === 1) {
+                        speechText = `${isCorrect ? 'Correcto,' : 'Incorrecto.'} ${correctAnswer} está en ${stateName}.`;
+                    }
+                    else if (mode === 2 && stateSitesStr) {
                         // Mode 2 (both correct and incorrect): "X, Y, and Z se encuentran en State"
                         const formattedSites = formatSiteList(stateSitesStr);
-                        speechText = `${formattedSites} se encuentran en ${stateName}`;
-                    } else if (isCorrect) {
-                        // Mode 1 correct
-                        speechText = `Correcto, ${correctAnswer}`;
+                        speechText = `${isCorrect ? 'Correcto,' : 'Incorrecto.'} ${formattedSites} se encuentran en ${stateName}`;
+                    } else if (mode === 3) {
+                        speechText = `${isCorrect ? 'Correcto,' : 'Incorrecto.'} ${siteName} fue designado en ${correctAnswer}`;
                     } else {
-                        // Mode 1 incorrect
-                        speechText = `Incorrecto. ${correctAnswer} está en ${stateName}`;
+                        speechText = `${isCorrect ? 'Correcto,' : 'Incorrecto.'} ${correctAnswer}.`;
                     }
 
                     // Send answer to server

@@ -8,10 +8,10 @@
     <meta http-equiv="Expires" content="0">
     <title>Preguntas de Lists - Examen de Ciudadanía Mexicana</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/quiz.css') }}">
     <style>
-        /* Multiline quiz-specific styles */
+        /* Multiline page-specific styles */
         h1 {
-            color: #005a31;
             margin-bottom: 10px;
         }
         .category {
@@ -37,47 +37,6 @@
             color: white;
             font-weight: bold;
             font-size: 0.85em;
-        }
-        .question {
-            font-size: 1.25em;
-            margin-bottom: 25px;
-            min-height: 50px;
-        }
-        .options {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        .option-btn {
-            background-color: #f8f9fa;
-            border: 2px solid #ced4da;
-            border-radius: 8px;
-            padding: 15px;
-            font-size: 1em;
-            cursor: pointer;
-            transition: all 0.2s ease-in-out;
-            text-align: left;
-        }
-        .option-btn:hover:not(:disabled) {
-            border-color: #005a31;
-            background-color: #e8f5e9;
-        }
-        .option-btn.correct {
-            background-color: #28a745;
-            border-color: #28a745;
-            color: white;
-            font-weight: bold;
-        }
-        .option-btn.incorrect {
-            background-color: #dc3545;
-            border-color: #dc3545;
-            color: white;
-        }
-        .option-btn:disabled {
-            cursor: not-allowed;
-        }
-        .next-btn.visible {
-            visibility: visible;
         }
     </style>
 </head>

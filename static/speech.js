@@ -17,7 +17,6 @@ let isInitialized = false;
  * Find and select the best Spanish voice, storing the choice in localStorage
  */
 function selectSpanishVoice() {
-    console.log('selectSpanishVoice');
     const voices = speechSynthesis.getVoices();
 
     if (voices.length === 0) {

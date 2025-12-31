@@ -1,12 +1,14 @@
-/* Geography quiz-specific styles */
+/* Geography quiz-specific styles and overrides */
+/* Inherits base quiz styles from quiz.css */
+
 .quiz-container {
     max-width: 1200px;
     max-height: calc(100vh - 80px);
     padding: 20px;
 }
 
+/* Override h1 margins for geography layout */
 h1 {
-    color: #005a31;
     margin-top: 0;
     margin-bottom: 15px;
     flex-shrink: 0;
@@ -27,6 +29,7 @@ h1 {
     margin-top: 3px;
 }
 
+/* Override question styling for geography */
 .question {
     font-size: 1.3em;
     margin-bottom: 15px;
@@ -95,48 +98,19 @@ h1 {
     stroke-width: 3 !important;
 }
 
+/* Override options gap and add geography-specific layout */
 .options {
-    display: flex;
-    flex-direction: column;
     gap: 10px;
     flex-shrink: 0;
     align-self: center;
 }
 
+/* Add fixed width for geography buttons */
 .option-btn {
-    background-color: #f8f9fa;
-    border: 2px solid #ced4da;
-    border-radius: 8px;
-    padding: 12px;
-    font-size: 0.95em;
-    cursor: pointer;
-    transition: all 0.2s ease-in-out;
-    text-align: left;
     width: 300px;
 }
 
-.option-btn:hover:not(:disabled) {
-    border-color: #005a31;
-    background-color: #e8f5e9;
-}
-
-.option-btn.correct {
-    background-color: #28a745;
-    border-color: #28a745;
-    color: white;
-    font-weight: bold;
-}
-
-.option-btn.incorrect {
-    background-color: #dc3545;
-    border-color: #dc3545;
-    color: white;
-}
-
-.option-btn:disabled {
-    cursor: not-allowed;
-}
-
+/* Override next button to be hidden initially */
 .next-btn {
     visibility: hidden;
     margin-top: 15px;

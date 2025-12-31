@@ -1474,6 +1474,7 @@ def geography_unesco():
         total_sites=total_sites,
         correct_site_ids=correct_site_ids_str,
         mode=mode,
+        site_name=site_name,
         state_name=state_name,
         state_sites_str=state_sites_str,
         current_chunk=max_chunk,

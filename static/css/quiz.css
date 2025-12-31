@@ -1,0 +1,64 @@
+/* Shared quiz/question page styles */
+
+/* Page heading */
+h1 {
+    color: #005a31;
+    margin-bottom: 25px;
+}
+
+/* Question text display */
+.question {
+    font-size: 1.25em;
+    margin-bottom: 25px;
+    min-height: 50px;
+}
+
+/* Options container */
+.options {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Option buttons - base styles */
+.option-btn {
+    background-color: #f8f9fa;
+    border: 2px solid #ced4da;
+    border-radius: 8px;
+    padding: 15px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    text-align: left;
+}
+
+/* Option button hover state */
+.option-btn:hover:not(:disabled) {
+    border-color: #005a31;
+    background-color: #e8f5e9;
+}
+
+/* Correct answer state */
+.option-btn.correct {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: white;
+    font-weight: bold;
+}
+
+/* Incorrect answer state */
+.option-btn.incorrect {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+/* Disabled button state */
+.option-btn:disabled {
+    cursor: not-allowed;
+}
+
+/* Next button (initially hidden) */
+.next-btn.visible {
+    visibility: visible;
+}
