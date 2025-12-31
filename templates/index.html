@@ -95,7 +95,7 @@
     </div>
 
     <div class="quiz-container">
-        <h1>Practice Test</h1>
+        <h1>Practice Questions</h1>
 
         <!-- Progress indicator -->
         <div class="progress-container" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
@@ -233,12 +233,9 @@
                 }
             });
 
-            // Auto-speak question when page loads (if enabled)
-            setTimeout(() => {
-                if (speechEnabled) {
-                    speakQuestion();
-                }
-            }, 500); // Small delay to ensure page is fully loaded
+            // Auto-speak question when page loads
+            const questionText = document.getElementById('question').textContent;
+            speakText(questionText);
 
             optionsContainer.addEventListener('click', async (event) => {
                 // Check if the clicked element is an option button and is not disabled

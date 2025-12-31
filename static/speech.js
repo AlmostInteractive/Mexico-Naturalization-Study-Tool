@@ -17,6 +17,7 @@ let isInitialized = false;
  * Find and select the best Spanish voice, storing the choice in localStorage
  */
 function selectSpanishVoice() {
+    console.log('selectSpanishVoice');
     const voices = speechSynthesis.getVoices();
 
     if (voices.length === 0) {
@@ -142,8 +143,19 @@ function speakTextNow(text, onComplete = null) {
  * Speak text using the selected Spanish voice
  * If voices aren't loaded yet, queue the request
  */
-function speakText(text, onComplete = null) {
+function speakText(text, onComplete = null, retryAttempt = 0) {
+    const retryDelays = [100, 200, 300]; // ms delays for each retry
+
     if (!speechEnabled || !hasSpanishVoice || !('speechSynthesis' in window)) {
+        // If we haven't exhausted retries, wait and try again
+        if (retryAttempt < retryDelays.length) {
+            setTimeout(() => {
+                speakText(text, onComplete, retryAttempt + 1);
+            }, retryDelays[retryAttempt]);
+            return;
+        }
+
+        // All retries exhausted, give up
         if (onComplete) onComplete();
         return;
     }
@@ -408,7 +420,6 @@ function initializeSpeech() {
     if (isInitialized) {
         return;
     }
-    isInitialized = true;
 
     // Load voices immediately (try synchronously first)
     loadVoices();
@@ -451,6 +462,8 @@ function initializeSpeech() {
             localStorage.setItem('speechRate', speechRate);
         });
     }
+
+    isInitialized = true;
 }
 
 // Initialize when DOM is ready

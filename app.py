@@ -2751,12 +2751,6 @@ def synopsis_atlas6():
     return render_geography_reference('synopsis_atlas6.html')
 
 
-@app.route('/synopsis_geography')
-def synopsis_geography():
-    """Display the comprehensive geography reference page."""
-    return render_geography_reference('synopsis_geography.html')
-
-
 def render_geography_reference(template_name):
     """Helper function to render geography reference with data."""
     conn = get_db_connection()
