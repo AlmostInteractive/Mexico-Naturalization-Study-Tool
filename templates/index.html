@@ -123,7 +123,6 @@
             const speechRateSelect = document.getElementById('speech-rate');
             const replayButton = document.getElementById('replay-speech');
             const deleteButton = document.getElementById('delete-question-btn');
-            const geographyLink = document.getElementById('geography-link');
 
             // Replay speech functionality
             replayButton.addEventListener('click', speakQuestion);
@@ -310,8 +309,9 @@
                     // Show the "Next Question" button immediately
                     nextButton.style.visibility = 'visible';
 
-                    // If speech is disabled, auto-advance after 2 seconds
-                    if (!speechEnabled) {
+                    // If speech is disabled and there are no notes, auto-advance after 2 seconds
+                    const notes = document.getElementById('notes').textContent.trim();
+                    if (!speechEnabled && !notes) {
                         setTimeout(() => {
                             window.location.href = '/questions_multi';
                         }, 2000);

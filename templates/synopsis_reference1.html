@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reference Tables - Historical Political Plans</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/synopsis.css') }}">
+    <style>
+        .plans-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 0.95em;
+        }
+
+        .plans-table thead {
+            background-color: #005a31;
+            color: white;
+        }
+
+        .plans-table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .plans-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .plans-table tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .plans-table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .year-col {
+            width: 10%;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .name-col {
+            width: 25%;
+            font-weight: 600;
+            color: #005a31;
+        }
+
+        .creator-col {
+            width: 30%;
+        }
+
+        .target-col {
+            width: 35%;
+        }
+
+        @media (max-width: 768px) {
+            .plans-table {
+                font-size: 0.85em;
+            }
+
+            .plans-table th,
+            .plans-table td {
+                padding: 8px 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Menu Bar -->
+    <div class="menu-bar">
+        <div class="menu-left">
+            <a href="/" class="menu-nav-link">📊 Progress</a>
+            <span class="menu-separator">|</span>
+            <a href="/synopsis" class="menu-nav-link">📖 Synopsis</a>
+            <span class="menu-separator">|</span>
+            <a href="/questions_multi" class="menu-nav-link">📝 Questions</a>
+            <span class="menu-separator">|</span>
+            <a href="/geography_states" class="menu-nav-link">🗺️ Geography</a>
+        </div>
+    </div>
+
+    <!-- Third Level Menu (Reference Tables) -->
+    <div class="submenu-bar">
+        <a href="/synopsis_reference1" class="submenu-nav-link active">Historical Political Plans</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis_reference2" class="submenu-nav-link">Geography Reference</a>
+    </div>
+
+    <div class="content-container">
+        <h1 class="centered">Historical Political Plans</h1>
+
+        <div class="intro-section">
+            <p>Throughout Mexican history, political movements have issued formal declarations known as "planes" (plans) to announce their objectives and rally support. These manifestos typically outlined grievances against existing governments and proclaimed new political directions.</p>
+            <p>This reference table lists major historical plans in chronological order, showing who created them, what they were called, and which government or leader they opposed.</p>
+        </div>
+
+        <table class="plans-table">
+            <thead>
+                <tr>
+                    <th class="year-col">Year</th>
+                    <th class="name-col">Name of Plan</th>
+                    <th class="creator-col">Creator(s)</th>
+                    <th class="target-col">Target of Opposition</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="year-col">1821</td>
+                    <td class="name-col">Plan de Iguala</td>
+                    <td class="creator-col">Agustín de Iturbide (with Vicente Guerrero)</td>
+                    <td class="target-col">Spanish colonial rule</td>
+                </tr>
+                <tr>
+                    <td class="year-col">1823</td>
+                    <td class="name-col">Plan de Casamata</td>
+                    <td class="creator-col">Antonio López de Santa Anna</td>
+                    <td class="target-col">Agustín de Iturbide</td>
+                </tr>
+                <tr>
+                    <td class="year-col">1834</td>
+                    <td class="name-col">Plan de Cuernavaca</td>
+                    <td class="creator-col">José María Luis Mora (Liberales)</td>
+                    <td class="target-col">Valentín Gómez Farías</td>
+                </tr>
+                <tr>
+                    <td class="year-col">1854</td>
+                    <td class="name-col">Plan de Ayutla</td>
+                    <td class="creator-col">Juan Álvarez</td>
+                    <td class="target-col">Antonio López de Santa Anna</td>
+                </tr>
+                <tr>
+                    <td class="year-col">1857</td>
+                    <td class="name-col">Plan de Tacubaya</td>
+                    <td class="creator-col">Various conservative leaders</td>
+                    <td class="target-col">Ignacio Comonfort and the Constitution of 1857</td>
+                </tr>
+                <tr>
+                    <td class="year-col">1911</td>
+                    <td class="name-col">Plan de Ayala</td>
+                    <td class="creator-col">Emiliano Zapata</td>
+                    <td class="target-col">Francisco I. Madero (initially)</td>
+                </tr>
+                <tr>
+                    <td class="year-col">1913</td>
+                    <td class="name-col">Plan de la Ciudadela</td>
+                    <td class="creator-col">Félix Díaz</td>
+                    <td class="target-col">Francisco I. Madero</td>
+                </tr>
+                <tr>
+                    <td class="year-col">1913</td>
+                    <td class="name-col">Plan de Guadalupe</td>
+                    <td class="creator-col">Venustiano Carranza</td>
+                    <td class="target-col">Victoriano Huerta</td>
+                </tr>
+                <tr>
+                    <td class="year-col">1920</td>
+                    <td class="name-col">Plan de Agua Prieta</td>
+                    <td class="creator-col">Álvaro Obregón</td>
+                    <td class="target-col">Venustiano Carranza</td>
+                </tr>
+                <tr>
+                    <td class="year-col">1923</td>
+                    <td class="name-col">Plan de la Huertista</td>
+                    <td class="creator-col">Adolfo de la Huerta</td>
+                    <td class="target-col">Álvaro Obregón</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="warning-box" style="margin-top: 30px;">
+            <p style="margin: 0;"><strong>Study Tip:</strong> Pay attention to the chronological sequence and the relationships between these plans. Many revolutionary leaders who issued plans later became the targets of subsequent plans.</p>
+        </div>
+
+        <div class="next-section">
+            <a href="/synopsis_reference">← Back to Reference Tables</a>
+        </div>
+    </div>
+</body>
+</html>

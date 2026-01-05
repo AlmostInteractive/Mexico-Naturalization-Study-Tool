@@ -162,18 +162,37 @@
                             message = `Incorrecto. La respuesta correcta es: ${correctAnswer}. Conseguiste ${data.score} de ${data.required}.`;
                         }
 
-                        speakText(message, () => {
+                        if (speechEnabled) {
+                            speakText(message, () => {
+                                setTimeout(() => {
+                                    window.location.href = '/questions_lists';
+                                }, 1000);
+                            });
+                        } else {
+                            // If audio is OFF, show next button and auto-advance after delay
+                            document.getElementById('nextBtn').style.visibility = 'visible';
                             setTimeout(() => {
                                 window.location.href = '/questions_lists';
-                            }, 1000);
-                        });
+                            }, 2000);
+                        }
                     }, 300);
                 } else {
-                    // Continue to next item - speak and show next button
+                    // Continue to next item - speak and auto-advance
                     setTimeout(() => {
-                        speakText(`Correcto. ${correctAnswer}`, () => {
+                        if (speechEnabled) {
+                            speakText(`Correcto. ${correctAnswer}`, () => {
+                                // Auto-advance after speech completes
+                                setTimeout(() => {
+                                    window.location.href = '/questions_lists';
+                                }, 1000); // 1 second delay after speech
+                            });
+                        } else {
+                            // If audio is OFF, show next button and auto-advance after delay
                             document.getElementById('nextBtn').classList.add('visible');
-                        });
+                            setTimeout(() => {
+                                window.location.href = '/questions_lists';
+                            }, 2000); // 2 second delay when no audio
+                        }
                     }, 300);
                 }
             })

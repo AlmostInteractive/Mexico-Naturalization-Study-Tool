@@ -2745,13 +2745,6 @@ def synopsis_atlas5():
     """Display the Entidades Federativas (Federal Entities) synopsis page."""
     return render_template('synopsis_atlas5.html')
 
-
-@app.route('/synopsis_atlas6')
-def synopsis_atlas6():
-    """Display the Geography Reference as part of Atlas de México."""
-    return render_geography_reference('synopsis_atlas6.html')
-
-
 def render_geography_reference(template_name):
     """Helper function to render geography reference with data."""
     conn = get_db_connection()
@@ -2865,6 +2858,24 @@ def render_geography_reference(template_name):
                          pueblo_count=pueblo_count,
                          unesco_count=unesco_count,
                          arch_count=arch_count)
+
+
+@app.route('/synopsis_reference')
+def synopsis_reference():
+    """Display the Reference Tables main page."""
+    return render_template('synopsis_reference.html')
+
+
+@app.route('/synopsis_reference1')
+def synopsis_reference1():
+    """Display the Historical Political Plans reference table."""
+    return render_template('synopsis_reference1.html')
+
+
+@app.route('/synopsis_reference2')
+def synopsis_reference2():
+    """Display the Geography Reference as part of Reference Tables."""
+    return render_geography_reference('synopsis_reference2.html')
 
 
 # --- Main execution block ---

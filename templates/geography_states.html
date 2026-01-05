@@ -246,6 +246,9 @@
                                 if (answerSubmitted) return;
 
                                 const clickedStateNum = path.getAttribute('data-state-number');
+                                if (!clickedStateNum) return; // Ignore clicks on paths without state data
+
+                                const clickedStateName = path.getAttribute('data-state-name');
                                 const clickedPaths = svg.querySelectorAll(`path[data-state-number="${clickedStateNum}"]`);
                                 const correctPaths = svg.querySelectorAll(`path[data-state-number="${stateNumber}"]`);
                                 const isCorrect = clickedStateNum === stateNumber.toString();
@@ -259,15 +262,15 @@
                                     correctPaths.forEach(p => p.classList.add('correct'));
                                 }
 
-                                const speechText = isCorrect ? `Correcto, ${correctStateName}` : `Incorrecto. La respuesta correcta es ${correctStateName}`;
+                                const speechText = isCorrect ? `Correcto, ${correctAnswer}` : `Incorrecto. La respuesta correcta es ${correctAnswer}`;
 
                                 fetch('/geography_answer', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({
                                         geography_id: geographyId,
-                                        selected_answer: clickedStateNum,
-                                        correct_answer: stateNumber.toString(),
+                                        selected_answer: clickedStateName,
+                                        correct_answer: correctAnswer,
                                         part: 1
                                     })
                                 })

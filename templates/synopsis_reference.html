@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synopsis - Reference Tables</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/synopsis.css') }}">
+</head>
+<body>
+    <!-- Main Menu Bar -->
+    <div class="menu-bar">
+        <div class="menu-left">
+            <a href="/" class="menu-nav-link">📊 Progress</a>
+            <span class="menu-separator">|</span>
+            <a href="/synopsis" class="menu-nav-link">📖 Synopsis</a>
+            <span class="menu-separator">|</span>
+            <a href="/questions_multi" class="menu-nav-link">📝 Questions</a>
+            <span class="menu-separator">|</span>
+            <a href="/geography_states" class="menu-nav-link">🗺️ Geography</a>
+        </div>
+    </div>
+
+    <!-- Third Level Menu (Reference Tables) -->
+    <div class="submenu-bar">
+        <a href="/synopsis_reference1" class="submenu-nav-link">Historical Political Plans</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis_reference2" class="submenu-nav-link">Geography Reference</a>
+    </div>
+
+    <div class="content-container">
+        <h1 class="centered">📖 Reference Tables</h1>
+
+        <h2>About This Section</h2>
+        <p>The following reference tables provide quick access to key facts, dates, and information commonly tested on the Mexican citizenship exam.</p>
+
+        <p>This section is designed as a <strong>study aid and reference</strong> for those preparing for the naturalization exam. It consolidates essential information into easy-to-reference tables and charts.</p>
+
+        <h2>Reference Tables</h2>
+        <p>Select a reference table below to view:</p>
+
+        <div class="synopsis-links">
+            <a href="/synopsis_reference1" class="synopsis-card">
+                <h3>Historical Political Plans</h3>
+                <p>Major political manifestos and declarations throughout Mexican history</p>
+            </a>
+            <a href="/synopsis_reference2" class="synopsis-card">
+                <h3>Geography Reference</h3>
+                <p>Comprehensive state-by-state reference of capitals, Pueblos Mágicos, UNESCO sites, and archaeological sites</p>
+            </a>
+        </div>
+
+        <div class="next-section">
+            <a href="/synopsis_reference1">Continue to Historical Political Plans →</a>
+        </div>
+    </div>
+</body>
+</html>

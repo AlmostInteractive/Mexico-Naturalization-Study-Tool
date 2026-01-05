@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Atlas de México - Geography Reference</title>
+    <title>Reference Tables - Geography Reference</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/synopsis.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/geography_synopsis.css') }}">
@@ -22,32 +22,15 @@
         </div>
     </div>
 
-    <!-- Sub Menu Bar (Sinopsis Section) -->
+    <!-- Third Level Menu (Reference Tables) -->
     <div class="submenu-bar">
-        <a href="/synopsis_nmhm" class="submenu-nav-link">Nueva Historia Mínima de México</a>
+        <a href="/synopsis_reference1" class="submenu-nav-link">Historical Political Plans</a>
         <span class="submenu-separator">|</span>
-        <a href="/synopsis_atlas" class="submenu-nav-link">Atlas de México</a>
-        <span class="submenu-separator">|</span>
-        <a href="/synopsis_geography" class="submenu-nav-link">Geography</a>
-    </div>
-
-    <!-- Third Level Menu (Atlas Chapters) -->
-    <div class="submenu-bar">
-        <a href="/synopsis_atlas1" class="submenu-nav-link">1. Medio Físico</a>
-        <span class="submenu-separator">|</span>
-        <a href="/synopsis_atlas2" class="submenu-nav-link">2. Sociedad</a>
-        <span class="submenu-separator">|</span>
-        <a href="/synopsis_atlas3" class="submenu-nav-link">3. Infraestructura</a>
-        <span class="submenu-separator">|</span>
-        <a href="/synopsis_atlas4" class="submenu-nav-link">4. Economía</a>
-        <span class="submenu-separator">|</span>
-        <a href="/synopsis_atlas5" class="submenu-nav-link">5. Entidades Federativas</a>
-        <span class="submenu-separator">|</span>
-        <a href="/synopsis_atlas6" class="submenu-nav-link active">6. Geography Reference</a>
+        <a href="/synopsis_reference2" class="submenu-nav-link active">Geography Reference</a>
     </div>
 
     <div class="content-container">
-        <h1 class="centered">6. Geography Reference</h1>
+        <h1 class="centered">Geography Reference</h1>
 
         <div class="intro-section">
             <p>This comprehensive reference shows all geographic information organized by state. Use this to study before taking the geography quizzes.</p>
@@ -202,7 +185,7 @@
         {% endif %}
 
         <div class="next-section">
-            <a href="/synopsis">← Back to Synopsis</a>
+            <a href="/synopsis_reference">← Back to Reference Tables</a>
         </div>
     </div>
 
