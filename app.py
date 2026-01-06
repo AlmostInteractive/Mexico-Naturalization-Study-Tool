@@ -1017,6 +1017,51 @@ def check_and_unlock_archaeological_chunk():
     conn.close()
 
 
+def check_and_unlock_multiline_chunk():
+    """Check if all multiline questions in current chunk are mastered, unlock next if so."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get current max unlocked chunk
+    cursor.execute('SELECT max_unlocked_multiline_chunk FROM user_progress WHERE id = 1')
+    result = cursor.fetchone()
+    max_chunk = result['max_unlocked_multiline_chunk'] if result else 1
+
+    # Get all multiline questions in currently unlocked chunks
+    cursor.execute('''
+        SELECT mq.id
+        FROM multiline_questions mq
+        WHERE mq.chunk_number <= ?
+    ''', (max_chunk,))
+
+    all_questions = cursor.fetchall()
+    total_in_set = len(all_questions)
+
+    # Count questions that are mastered
+    qualified_questions = 0
+    for question in all_questions:
+        if is_multiline_question_mastered(question['id'], cursor):
+            qualified_questions += 1
+
+    # Unlock next chunk if ALL questions are mastered
+    if qualified_questions == total_in_set:
+        # Get total chunks available
+        cursor.execute('SELECT MAX(chunk_number) FROM multiline_questions')
+        max_available_chunk = cursor.fetchone()[0] or 1
+
+        # Only unlock next chunk if we haven't reached the maximum
+        if max_chunk < max_available_chunk:
+            new_max_chunk = max_chunk + 1
+            cursor.execute('''
+                UPDATE user_progress
+                SET max_unlocked_multiline_chunk = ?
+                WHERE id = 1
+            ''', (new_max_chunk,))
+            conn.commit()
+
+    conn.close()
+
+
 # --- Geography Routes ---
 @app.route('/geography')
 def geography_redirect():
@@ -2340,12 +2385,48 @@ def update_multiline_stats(item_id, is_correct):
     conn.close()
 
 
+def is_multiline_question_mastered(question_id, cursor):
+    """Check if all items in a multiline question are mastered (80%+ rolling success rate, 3+ attempts)."""
+    cursor.execute('''
+        SELECT mi.id
+        FROM multiline_items mi
+        WHERE mi.question_id = ?
+    ''', (question_id,))
+
+    items = cursor.fetchall()
+    if not items:
+        return False
+
+    # Check if ALL items are mastered
+    for item in items:
+        cursor.execute('''
+            SELECT times_shown, success_rate
+            FROM multiline_stats
+            WHERE item_id = ?
+        ''', (item['id'],))
+
+        stats = cursor.fetchone()
+        if not stats:
+            return False
+
+        # Must have 3+ attempts and 80%+ success rate
+        if stats['times_shown'] < 3 or stats['success_rate'] < 0.8:
+            return False
+
+    return True
+
+
 def get_weighted_multiline_question(exclude_question_id=None):
     """Select a multiline question using 70/30 strategy: 70% unmastered, 30% mastered."""
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Get all multiline questions with their average weight and mastery status
+    # Get current max unlocked chunk
+    cursor.execute('SELECT max_unlocked_multiline_chunk FROM user_progress WHERE id = 1')
+    result = cursor.fetchone()
+    max_chunk = result['max_unlocked_multiline_chunk'] if result else 1
+
+    # Get all multiline questions with their average weight and mastery status (filtered by unlocked chunks)
     cursor.execute('''
         SELECT
             mq.id,
@@ -2357,8 +2438,9 @@ def get_weighted_multiline_question(exclude_question_id=None):
         FROM multiline_questions mq
         JOIN multiline_items mi ON mq.id = mi.question_id
         JOIN multiline_stats ms ON mi.id = ms.item_id
+        WHERE mq.chunk_number <= ?
         GROUP BY mq.id
-    ''')
+    ''', (max_chunk,))
 
     questions = cursor.fetchall()
 
@@ -2508,21 +2590,25 @@ def multiline_quiz():
     options = distractors + [correct_item['item_text']]
     random.shuffle(options)
 
-    # Get stats for chunking display (similar to questions_multi)
-    cursor.execute('SELECT COUNT(*) FROM multiline_questions')
-    total_questions = cursor.fetchone()[0]
+    # Get progress stats (chunk-specific)
+    cursor.execute('SELECT max_unlocked_multiline_chunk FROM user_progress WHERE id = 1')
+    result = cursor.fetchone()
+    max_chunk = result['max_unlocked_multiline_chunk'] if result else 1
 
-    # Count mastered questions (questions where all items have high success rate)
-    cursor.execute('''
-        SELECT COUNT(DISTINCT mq.id)
-        FROM multiline_questions mq
-        JOIN multiline_items mi ON mq.id = mi.question_id
-        JOIN multiline_stats ms ON mi.id = ms.item_id
-        WHERE ms.is_mastered = 1
-        GROUP BY mq.id
-        HAVING COUNT(*) = mq.total_items
-    ''')
-    mastered_count = len(cursor.fetchall())
+    # Get total chunks available
+    cursor.execute('SELECT MAX(chunk_number) FROM multiline_questions')
+    total_chunks = cursor.fetchone()[0] or 1
+
+    # Get all questions in currently unlocked chunks
+    cursor.execute('SELECT id FROM multiline_questions WHERE chunk_number <= ?', (max_chunk,))
+    all_questions = cursor.fetchall()
+    total_in_set = len(all_questions)
+
+    # Count mastered questions in unlocked chunks
+    mastered_count = 0
+    for q in all_questions:
+        if is_multiline_question_mastered(q['id'], cursor):
+            mastered_count += 1
 
     conn.close()
 
@@ -2536,8 +2622,10 @@ def multiline_quiz():
         required_correct=question['required_correct'],
         total_items=question['total_items'],
         items_answered=len(items_answered_ids),
-        total_questions=total_questions,
-        mastered_count=mastered_count
+        total_questions=total_in_set,
+        mastered_count=mastered_count,
+        current_chunk=max_chunk,
+        total_chunks=total_chunks
     )
 
 
@@ -2555,6 +2643,9 @@ def record_multiline_answer():
 
     # Update item statistics
     update_multiline_stats(item_id, is_correct)
+
+    # Check if we should unlock the next chunk
+    check_and_unlock_multiline_chunk()
 
     # Get current session data
     list_session_data = session.get('list_session')
@@ -2876,6 +2967,12 @@ def synopsis_reference1():
 def synopsis_reference2():
     """Display the Geography Reference as part of Reference Tables."""
     return render_geography_reference('synopsis_reference2.html')
+
+
+@app.route('/synopsis_reference3')
+def synopsis_reference3():
+    """Display the Key Constitutional Articles reference table."""
+    return render_template('synopsis_reference3.html')
 
 
 # --- Main execution block ---

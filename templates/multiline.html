@@ -37,6 +37,7 @@
             color: white;
             font-weight: bold;
             font-size: 0.85em;
+            min-width: 50px;
         }
     </style>
 </head>
@@ -77,14 +78,13 @@
     <div class="quiz-container">
         <h1>List Questions</h1>
 
-        <div style="text-align: center; margin-bottom: 15px; color: #666; font-size: 0.9em;">
-            <span style="display: inline-block; margin: 0 10px;">
-                Mastered Questions: {{ mastered_count }}
-            </span>
-            |
-            <span style="display: inline-block; margin: 0 10px;">
-                Total Questions: {{ total_questions }}
-            </span>
+        <!-- Progress indicator -->
+        <div class="progress-container" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+            <div style="font-size: 0.9em; color: #495057;">
+                Mastered Questions: {{ mastered_count }} |
+                Questions in Session: {{ total_questions }} |
+                Current Chunk: {{ current_chunk }} / {{ total_chunks }}
+            </div>
         </div>
 
         <div class="progress-bar">

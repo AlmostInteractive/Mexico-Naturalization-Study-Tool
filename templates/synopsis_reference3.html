@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reference Tables - Key Constitutional Articles</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/synopsis.css') }}">
+    <style>
+        .constitution-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 0.95em;
+        }
+
+        .constitution-table thead {
+            background-color: #005a31;
+            color: white;
+        }
+
+        .constitution-table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .constitution-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .constitution-table tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .constitution-table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .article-col {
+            width: 15%;
+            text-align: center !important;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        .topic-col {
+            width: 85%;
+        }
+
+        @media (max-width: 768px) {
+            .constitution-table {
+                font-size: 0.85em;
+            }
+
+            .constitution-table th,
+            .constitution-table td {
+                padding: 8px 6px;
+            }
+
+            .article-col {
+                width: 20%;
+                font-size: 1em;
+            }
+
+            .topic-col {
+                width: 80%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Menu Bar -->
+    <div class="menu-bar">
+        <div class="menu-left">
+            <a href="/" class="menu-nav-link">📊 Progress</a>
+            <span class="menu-separator">|</span>
+            <a href="/synopsis" class="menu-nav-link">📖 Synopsis</a>
+            <span class="menu-separator">|</span>
+            <a href="/questions_multi" class="menu-nav-link">📝 Questions</a>
+            <span class="menu-separator">|</span>
+            <a href="/geography_states" class="menu-nav-link">🗺️ Geography</a>
+        </div>
+    </div>
+
+    <!-- Third Level Menu (Reference Tables) -->
+    <div class="submenu-bar">
+        <a href="/synopsis_reference1" class="submenu-nav-link">Historical Political Plans</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis_reference2" class="submenu-nav-link">Geography Reference</a>
+        <span class="submenu-separator">|</span>
+        <a href="/synopsis_reference3" class="submenu-nav-link active">Key Constitutional Articles</a>
+    </div>
+
+    <div class="content-container">
+        <h1 class="centered">Key Constitutional Articles</h1>
+
+        <div class="intro-section">
+            <p>The Mexican Constitution of 1917 is one of the most comprehensive constitutions in the world. While it contains 136 articles, certain articles are particularly significant because they establish fundamental rights, define the structure of government, or address critical aspects of Mexican sovereignty and society.</p>
+            <p>This reference table highlights the most important constitutional articles commonly tested on the naturalization exam. Understanding these articles provides insight into Mexico's legal framework, citizen rights, and the principles that guide the nation.</p>
+        </div>
+
+        <table class="constitution-table">
+            <thead>
+                <tr>
+                    <th class="article-col">Article</th>
+                    <th class="topic-col">Topic / Synopsis</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="article-col">1</td>
+                    <td class="topic-col">Human rights protection for all.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">2</td>
+                    <td class="topic-col">Rights of Indigenous peoples and communities.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">3</td>
+                    <td class="topic-col">Right to secular, free, compulsory education.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">4</td>
+                    <td class="topic-col">Equality before the law; family protection.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">5</td>
+                    <td class="topic-col">Freedom to choose profession or work.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">6</td>
+                    <td class="topic-col">Freedom of expression.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">7</td>
+                    <td class="topic-col">Freedom of the press.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">8</td>
+                    <td class="topic-col">Right to petition authorities.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">9</td>
+                    <td class="topic-col">Right of association and assembly.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">14</td>
+                    <td class="topic-col">No retroactive laws; due process.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">16</td>
+                    <td class="topic-col">Legal certainty: no arbitrary acts, warrants needed.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">24</td>
+                    <td class="topic-col">Freedom of religion.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">27</td>
+                    <td class="topic-col">National ownership of land, water, subsoil resources.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">28</td>
+                    <td class="topic-col">Prohibition of monopolies.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">30</td>
+                    <td class="topic-col">Defines Mexican nationality.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">33</td>
+                    <td class="topic-col">Rights of foreigners; no interference in politics.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">35</td>
+                    <td class="topic-col">Rights of citizens (vote, hold office).</td>
+                </tr>
+                <tr>
+                    <td class="article-col">39</td>
+                    <td class="topic-col">National sovereignty resides in the people.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">40</td>
+                    <td class="topic-col">Federal, democratic, representative republic.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">41</td>
+                    <td class="topic-col">Division of powers; electoral system.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">49</td>
+                    <td class="topic-col">Separation of Legislative, Executive, Judicial powers.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">102</td>
+                    <td class="topic-col">Attorney General and Public Prosecutor's Office.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">105</td>
+                    <td class="topic-col">Constitutional controversies and actions.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">107</td>
+                    <td class="topic-col">Regulates "Amparo" (constitutional protection).</td>
+                </tr>
+                <tr>
+                    <td class="article-col">115</td>
+                    <td class="topic-col">Municipal autonomy and framework.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">123</td>
+                    <td class="topic-col">Labor rights and social security.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">130</td>
+                    <td class="topic-col">Historical separation of Church and State.</td>
+                </tr>
+                <tr>
+                    <td class="article-col">136</td>
+                    <td class="topic-col">Constitutional supremacy; no suspension by force.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="warning-box" style="margin-top: 30px;">
+            <p style="margin: 0;"><strong>Study Tip:</strong> Articles 1-29 establish individual guarantees and fundamental rights. Articles 30-38 address nationality and citizenship. Articles 39-136 define the structure and functioning of the Mexican state.</p>
+        </div>
+
+        <div class="next-section">
+            <a href="/synopsis_reference">← Back to Reference Tables</a>
+        </div>
+    </div>
+</body>
+</html>
