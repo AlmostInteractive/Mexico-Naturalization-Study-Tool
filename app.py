@@ -2837,7 +2837,13 @@ def synopsis_atlas5():
     return render_template('synopsis_atlas5.html')
 
 def render_geography_reference(template_name):
-    """Helper function to render geography reference with data."""
+    """
+    Helper function to render geography reference with data.
+    NOTE: This function is no longer used by the Flask app at runtime.
+    It has been replaced by a static file (synopsis_reference2_static.html).
+    This function serves as reference for the regenerate_synopsis.py script.
+    To update the geography reference page, run: python regenerate_synopsis.py
+    """
     conn = get_db_connection()
 
     # Get all states with capitals
@@ -2965,8 +2971,8 @@ def synopsis_reference1():
 
 @app.route('/synopsis_reference2')
 def synopsis_reference2():
-    """Display the Geography Reference as part of Reference Tables."""
-    return render_geography_reference('synopsis_reference2.html')
+    """Display the Geography Reference as part of Reference Tables (static version)."""
+    return render_template('synopsis_reference2_static.html')
 
 
 @app.route('/synopsis_reference3')
